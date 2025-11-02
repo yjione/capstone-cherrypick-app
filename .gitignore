@@ -1,0 +1,35 @@
+# Flutter/Dart specific
+.dart_tool/
+.packages
+.flutter-plugins
+.flutter-plugins-dependencies
+build/
+pubspec.lock
+
+# IDE specific
+.idea/
+
+# Android specific
+android/app/build/
+android/build/
+android/.gradle/
+android/local.properties
+
+# iOS specific
+ios/Pods/
+ios/Runner.xcworkspace/
+ios/Runner.xcodeproj/project.xcworkspace/
+ios/Runner.xcodeproj/xcuserdata/
+ios/.symlinks/
+ios/Flutter/App.framework
+ios/Flutter/Flutter.framework
+
+# Windows specific
+windows/flutter/ephemeral/
+windows/flutter/generated_plugins.cmake
+
+# MacOS specific
+macos/Flutter/ephemeral/
+
+# Linux specific
+linux/flutter/ephemeral/
