@@ -9,26 +9,21 @@ class TripSelectorDialog extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+
     return Consumer<TripProvider>(
       builder: (context, tripProvider, child) {
         return Dialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-          child: Container(
-            constraints: const BoxConstraints(maxWidth: 400),
-            padding: const EdgeInsets.all(24),
+          insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(24, 20, 24, 16),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Text(
-                  '여행 선택',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 16),
+                Text('여행 선택',
+                    style: Theme.of(context).textTheme.titleLarge!.copyWith(fontWeight: FontWeight.w800)),
+                const SizedBox(height: 12),
                 ...tripProvider.trips.map((trip) => _TripItem(
                   trip: trip,
                   isSelected: tripProvider.currentTripId == trip.id,
@@ -37,18 +32,32 @@ class TripSelectorDialog extends StatelessWidget {
                     Navigator.of(context).pop();
                   },
                   onDelete: tripProvider.trips.length > 1
-                    ? () => tripProvider.deleteTrip(trip.id)
-                    : null,
+                      ? () => tripProvider.deleteTrip(trip.id)
+                      : null,
                 )),
                 const SizedBox(height: 8),
-                _AddTripButton(
+                InkWell(
+                  borderRadius: BorderRadius.circular(12),
                   onTap: () {
                     Navigator.of(context).pop();
-                    showDialog(
-                      context: context,
-                      builder: (context) => const AddTripDialog(),
-                    );
+                    showDialog(context: context, builder: (_) => const AddTripDialog());
                   },
+                  child: Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: cs.outline.withOpacity(0.28), width: 1.5),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(Icons.add, color: cs.primary),
+                        const SizedBox(width: 8),
+                        Text('새 여행 추가',
+                            style: TextStyle(fontWeight: FontWeight.w600, color: cs.primary)),
+                      ],
+                    ),
+                  ),
                 ),
               ],
             ),
@@ -74,69 +83,33 @@ class _TripItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
       decoration: BoxDecoration(
-        color: isSelected 
-          ? Theme.of(context).colorScheme.primaryContainer.withOpacity(0.3)
-          : Colors.transparent,
+        color: isSelected ? cs.primary.withOpacity(0.08) : cs.surface,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: isSelected 
-            ? Theme.of(context).colorScheme.primary.withOpacity(0.3)
-            : Colors.transparent,
-          width: 2,
+          color: isSelected ? cs.primary.withOpacity(0.35) : Colors.transparent,
+          width: 1.5,
         ),
-      ),
-      child: ListTile(
-        onTap: onTap,
-        title: Text(
-          trip.name,
-          style: const TextStyle(fontWeight: FontWeight.w600),
-        ),
-        subtitle: Text(trip.destination),
-        trailing: onDelete != null
-          ? IconButton(
-              icon: const Icon(Icons.delete_outline),
-              onPressed: onDelete,
-              color: Theme.of(context).colorScheme.error,
-            )
-          : null,
-      ),
-    );
-  }
-}
-
-class _AddTripButton extends StatelessWidget {
-  final VoidCallback onTap;
-
-  const _AddTripButton({required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      decoration: BoxDecoration(
-        border: Border.all(
-          color: Theme.of(context).colorScheme.outline.withOpacity(0.3),
-          style: BorderStyle.solid,
-          width: 2,
-        ),
-        borderRadius: BorderRadius.circular(12),
       ),
       child: ListTile(
         onTap: onTap,
         leading: Icon(
-          Icons.add,
-          color: Theme.of(context).colorScheme.primary,
+          isSelected ? Icons.radio_button_checked : Icons.radio_button_off,
+          color: isSelected ? cs.primary : cs.onSurfaceVariant,
         ),
-        title: Text(
-          '새 여행 추가',
-          style: TextStyle(
-            fontWeight: FontWeight.w500,
-            color: Theme.of(context).colorScheme.primary,
-          ),
-        ),
+        title: Text(trip.name, style: const TextStyle(fontWeight: FontWeight.w700)),
+        subtitle: Text(trip.destination),
+        trailing: onDelete != null
+            ? IconButton(
+          icon: const Icon(Icons.delete_outline),
+          onPressed: onDelete,
+          color: cs.error,
+        )
+            : null,
       ),
     );
   }

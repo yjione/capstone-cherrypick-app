@@ -18,13 +18,7 @@ class _AddTripDialogState extends State<AddTripDialog> {
   String _selectedDuration = '';
 
   final List<String> _durations = [
-    '1박 2일',
-    '2박 3일',
-    '3박 4일',
-    '4박 5일',
-    '5박 6일',
-    '6박 7일',
-    '7박 이상',
+    '1박 2일','2박 3일','3박 4일','4박 5일','5박 6일','6박 7일','7박 이상',
   ];
 
   @override
@@ -37,60 +31,40 @@ class _AddTripDialogState extends State<AddTripDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+
     return Dialog(
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Container(
-        constraints: const BoxConstraints(maxWidth: 400),
-        padding: const EdgeInsets.all(24),
+      insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(24, 20, 24, 20),
         child: Form(
           key: _formKey,
           child: Column(
             mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
-                '새 여행 추가',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
+              Center(
+                child: Text('새 여행 추가',
+                  style: Theme.of(context).textTheme.titleLarge!.copyWith(fontWeight: FontWeight.w800),
                 ),
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 20),
               TextFormField(
                 controller: _nameController,
-                decoration: const InputDecoration(
-                  labelText: '여행 이름',
-                  hintText: '예: 오사카 여행',
-                ),
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return '여행 이름을 입력해주세요';
-                  }
-                  return null;
-                },
+                decoration: const InputDecoration(labelText: '여행 이름', hintText: '예: 오사카 여행'),
+                validator: (v) => (v == null || v.isEmpty) ? '여행 이름을 입력해주세요' : null,
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 14),
               TextFormField(
                 controller: _destinationController,
-                decoration: const InputDecoration(
-                  labelText: '목적지',
-                  hintText: '예: 일본 오사카',
-                ),
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return '목적지를 입력해주세요';
-                  }
-                  return null;
-                },
+                decoration: const InputDecoration(labelText: '목적지', hintText: '예: 일본 오사카'),
+                validator: (v) => (v == null || v.isEmpty) ? '목적지를 입력해주세요' : null,
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 14),
               TextFormField(
                 controller: _startDateController,
-                decoration: const InputDecoration(
-                  labelText: '출발 날짜',
-                  suffixIcon: Icon(Icons.calendar_today),
-                ),
+                decoration: const InputDecoration(labelText: '출발 날짜', suffixIcon: Icon(Icons.calendar_today)),
                 readOnly: true,
                 onTap: () async {
                   final date = await showDatePicker(
@@ -100,47 +74,35 @@ class _AddTripDialogState extends State<AddTripDialog> {
                     lastDate: DateTime.now().add(const Duration(days: 365)),
                   );
                   if (date != null) {
-                    _startDateController.text = 
-                        '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
+                    _startDateController.text =
+                    '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
                   }
                 },
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return '출발 날짜를 선택해주세요';
-                  }
-                  return null;
-                },
+                validator: (v) => (v == null || v.isEmpty) ? '출발 날짜를 선택해주세요' : null,
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 14),
               DropdownButtonFormField<String>(
-                initialValue: _selectedDuration.isEmpty ? null : _selectedDuration,
-                decoration: const InputDecoration(
-                  labelText: '여행 기간',
-                ),
-                items: _durations.map((duration) {
-                  return DropdownMenuItem(
-                    value: duration,
-                    child: Text(duration),
-                  );
-                }).toList(),
-                onChanged: (value) {
-                  setState(() {
-                    _selectedDuration = value ?? '';
-                  });
-                },
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return '여행 기간을 선택해주세요';
-                  }
-                  return null;
-                },
+                value: _selectedDuration.isEmpty ? null : _selectedDuration,
+                decoration: const InputDecoration(labelText: '여행 기간'),
+                items: _durations.map((d) => DropdownMenuItem(value: d, child: Text(d))).toList(),
+                onChanged: (v) => setState(() => _selectedDuration = v ?? ''),
+                validator: (v) => (v == null || v.isEmpty) ? '여행 기간을 선택해주세요' : null,
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 20),
               SizedBox(
                 width: double.infinity,
-                child: ElevatedButton(
+                child: FilledButton(
                   onPressed: _addTrip,
                   child: const Text('추가'),
+                ),
+              ),
+              const SizedBox(height: 8),
+              SizedBox(
+                width: double.infinity,
+                child: TextButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  style: TextButton.styleFrom(foregroundColor: cs.onSurface),
+                  child: const Text('취소'),
                 ),
               ),
             ],
@@ -159,7 +121,6 @@ class _AddTripDialogState extends State<AddTripDialog> {
         startDate: _startDateController.text,
         duration: _selectedDuration,
       );
-
       Provider.of<TripProvider>(context, listen: false).addTrip(trip);
       Navigator.of(context).pop();
     }

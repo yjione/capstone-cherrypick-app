@@ -62,19 +62,19 @@ class ItemList extends StatelessWidget {
             Expanded(
               child: filteredItems.isEmpty
                   ? _EmptyState(
-                      hasSearchQuery: packingProvider.searchQuery.isNotEmpty,
-                      onAddItem: () => _showAddItemDialog(context, bagId),
-                    )
+                hasSearchQuery: packingProvider.searchQuery.isNotEmpty,
+                onAddItem: () => _showAddItemDialog(context, bagId),
+              )
                   : ListView.builder(
-                      itemCount: filteredItems.length,
-                      itemBuilder: (context, index) {
-                        final item = filteredItems[index];
-                        return ItemCard(
-                          item: item,
-                          bagId: bagId,
-                        );
-                      },
-                    ),
+                itemCount: filteredItems.length,
+                itemBuilder: (context, index) {
+                  final item = filteredItems[index];
+                  return ItemCard(
+                    item: item,
+                    bagId: bagId,
+                  );
+                },
+              ),
             ),
           ],
         );
@@ -178,7 +178,7 @@ class ItemCard extends StatelessWidget {
                             fontSize: 16,
                             fontWeight: FontWeight.w500,
                             decoration: item.packed ? TextDecoration.lineThrough : null,
-                            color: item.packed 
+                            color: item.packed
                                 ? Theme.of(context).colorScheme.onSurfaceVariant
                                 : null,
                           ),
@@ -222,11 +222,6 @@ class ItemCard extends StatelessWidget {
                   ],
                 ],
               ),
-            ),
-            const SizedBox(width: 8),
-            Icon(
-              item.packed ? Icons.check_circle : Icons.radio_button_unchecked,
-              color: item.packed ? Colors.green : Theme.of(context).colorScheme.onSurfaceVariant,
             ),
             const SizedBox(width: 8),
             IconButton(

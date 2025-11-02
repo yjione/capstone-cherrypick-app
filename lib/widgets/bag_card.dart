@@ -1,7 +1,8 @@
+// lib/widgets/bag_card.dart
 import 'package:flutter/material.dart';
 import '../models/bag.dart' as model;
 
-class BagCard extends StatelessWidget {
+class BagCard extends StatefulWidget {
   final model.Bag bag;
   final bool isSelected;
   final VoidCallback onTap;
@@ -14,77 +15,86 @@ class BagCard extends StatelessWidget {
   });
 
   @override
+  State<BagCard> createState() => _BagCardState();
+}
+
+class _BagCardState extends State<BagCard> {
+  @override
   Widget build(BuildContext context) {
-    final packedCount = bag.items.where((item) => item.packed).length;
-    final totalCount = bag.items.length;
+    final cs = Theme.of(context).colorScheme;
+
+    final packedCount = widget.bag.items.where((item) => item.packed).length;
+    final totalCount = widget.bag.items.length;
     final progress = totalCount > 0 ? (packedCount / totalCount * 100).round() : 0;
 
-    return Container(
+    // 선택/비선택 스타일 (중립색)
+    final Color borderColor = widget.isSelected
+        ? cs.outlineVariant.withOpacity(0.55)
+        : cs.outlineVariant.withOpacity(0.28);
+    final double borderWidth = widget.isSelected ? 2.0 : 1.0;
+    final double blur = widget.isSelected ? 10 : 4;
+    final Color shadow = Colors.black.withOpacity(widget.isSelected ? 0.08 : 0.04);
+
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 220),
+      curve: Curves.easeOutCubic,
       width: 240,
       margin: const EdgeInsets.only(right: 16),
-      child: Card(
-        elevation: isSelected ? 4 : 2,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-          side: isSelected 
-            ? BorderSide(color: Theme.of(context).colorScheme.primary, width: 2)
-            : BorderSide.none,
-        ),
+      decoration: BoxDecoration(
+        // ✔︎ 배경은 항상 하얀색으로 고정 (surface가 약간 톤이 있을 수 있어서 분리)
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: borderColor, width: borderWidth),
+        boxShadow: [
+          BoxShadow(
+            color: shadow,
+            blurRadius: blur,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Material(
+        type: MaterialType.transparency,
         child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(12),
+          onTap: widget.onTap,
+          borderRadius: BorderRadius.circular(16),
+          splashColor: cs.primary.withOpacity(0.06), // 아주 은은한 터치 피드백
+          highlightColor: Colors.transparent,
           child: Padding(
             padding: const EdgeInsets.all(16),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
-                  children: [
-                    Container(
-                      width: 40,
-                      height: 40,
-                      decoration: BoxDecoration(
-                        color: _getBagColor(bag.color),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Icon(
-                        _getBagIcon(bag.type),
-                        color: Colors.white,
-                        size: 20,
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Text(
-                        bag.name,
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                        ),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                  ],
+                // 🔹 아이콘/이모지 제거 — 텍스트만 깔끔하게
+                Text(
+                  widget.bag.name,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                  ),
+                  overflow: TextOverflow.ellipsis,
                 ),
                 const SizedBox(height: 12),
+
+                // 진행 상태 배지
                 Container(
                   width: double.infinity,
-                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  padding: const EdgeInsets.symmetric(vertical: 10),
                   decoration: BoxDecoration(
                     color: progress == 100 && totalCount > 0
-                        ? Theme.of(context).colorScheme.primaryContainer
-                        : Theme.of(context).colorScheme.surfaceContainerHighest,
-                    borderRadius: BorderRadius.circular(8),
+                        ? cs.primaryContainer
+                        : cs.surfaceContainerHighest,
+                    borderRadius: BorderRadius.circular(10),
                   ),
                   child: Text(
                     '$packedCount/$totalCount 완료',
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       fontSize: 14,
-                      fontWeight: FontWeight.w500,
+                      fontWeight: FontWeight.w600,
                       color: progress == 100 && totalCount > 0
-                          ? Theme.of(context).colorScheme.onPrimaryContainer
-                          : Theme.of(context).colorScheme.onSurfaceVariant,
+                          ? cs.onPrimaryContainer
+                          : cs.onSurfaceVariant,
                     ),
                   ),
                 ),
@@ -94,37 +104,5 @@ class BagCard extends StatelessWidget {
         ),
       ),
     );
-  }
-
-  Color _getBagColor(String colorName) {
-    switch (colorName) {
-      case 'blue':
-        return Colors.blue;
-      case 'green':
-        return Colors.green;
-      case 'purple':
-        return Colors.purple;
-      case 'orange':
-        return Colors.orange;
-      case 'pink':
-        return Colors.pink;
-      case 'teal':
-        return Colors.teal;
-      default:
-        return Colors.grey;
-    }
-  }
-
-  IconData _getBagIcon(String type) {
-    switch (type) {
-      case 'carry-on':
-        return Icons.business_center;
-      case 'checked':
-        return Icons.luggage;
-      case 'personal':
-        return Icons.shopping_bag;
-      default:
-        return Icons.luggage;
-    }
   }
 }
