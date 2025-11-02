@@ -3,27 +3,22 @@ import 'package:go_router/go_router.dart';
 
 class BottomNavigation extends StatelessWidget {
   final int currentIndex;
-  
-  const BottomNavigation({
-    super.key,
-    required this.currentIndex,
-  });
+
+  const BottomNavigation({super.key, required this.currentIndex});
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+
     return Container(
       decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surface,
-        border: Border(
-          top: BorderSide(
-            color: Theme.of(context).colorScheme.outline.withOpacity(0.2),
-            width: 1,
-          ),
-        ),
+        color: cs.surface,
+        border: Border(top: BorderSide(color: cs.outline.withOpacity(0.16), width: 1)),
       ),
       child: SafeArea(
+        top: false,
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
@@ -34,19 +29,19 @@ class BottomNavigation extends StatelessWidget {
                 onTap: () => context.go('/luggage'),
               ),
               _NavItem(
-                icon: Icons.camera_alt,
+                icon: Icons.camera_alt_rounded,
                 label: '스캔',
                 isActive: currentIndex == 1,
                 onTap: () => context.go('/scan'),
               ),
               _NavItem(
-                icon: Icons.flight,
+                icon: Icons.flight_takeoff_rounded,
                 label: '항공 규정',
                 isActive: currentIndex == 2,
                 onTap: () => context.go('/checklist'),
               ),
               _NavItem(
-                icon: Icons.location_on,
+                icon: Icons.location_on_rounded,
                 label: '추천',
                 isActive: currentIndex == 3,
                 onTap: () => context.go('/recommendations'),
@@ -74,29 +69,37 @@ class _NavItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
+    final cs = Theme.of(context).colorScheme;
+    return InkWell(
+      borderRadius: BorderRadius.circular(12),
       onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(
-              icon,
-              size: 24,
-              color: isActive 
-                ? Theme.of(context).colorScheme.primary
-                : Theme.of(context).colorScheme.onSurfaceVariant,
+            Stack(
+              alignment: Alignment.center,
+              children: [
+                Icon(icon, size: 24, color: isActive ? cs.primary : cs.onSurfaceVariant),
+                if (isActive)
+                  Positioned(
+                    bottom: -6,
+                    child: Container(
+                      width: 6,
+                      height: 6,
+                      decoration: BoxDecoration(color: cs.primary, borderRadius: BorderRadius.circular(3)),
+                    ),
+                  ),
+              ],
             ),
-            const SizedBox(height: 4),
+            const SizedBox(height: 8),
             Text(
               label,
               style: TextStyle(
                 fontSize: 12,
-                fontWeight: FontWeight.w500,
-                color: isActive 
-                  ? Theme.of(context).colorScheme.primary
-                  : Theme.of(context).colorScheme.onSurfaceVariant,
+                fontWeight: isActive ? FontWeight.w700 : FontWeight.w600,
+                color: isActive ? cs.primary : cs.onSurfaceVariant,
               ),
             ),
           ],

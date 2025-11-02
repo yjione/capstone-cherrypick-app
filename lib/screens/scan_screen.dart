@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import '../widgets/app_header.dart';
 import '../widgets/bottom_navigation.dart';
 import '../widgets/item_scanner.dart';
 
@@ -15,8 +14,9 @@ class ScanScreen extends StatelessWidget {
         elevation: 0,
         title: const Text('cherry pick'),
         centerTitle: true,
-        leading: const AppHeader(),
-        leadingWidth: 200,
+        automaticallyImplyLeading: false,
+        // leading: const AppHeader(),
+        // leadingWidth: 200,
       ),
       body: const ItemScanner(),
       bottomNavigationBar: const BottomNavigation(currentIndex: 1),

@@ -11,33 +11,32 @@ class AppHeader extends StatelessWidget {
     return Consumer<TripProvider>(
       builder: (context, tripProvider, child) {
         final currentTrip = tripProvider.currentTrip;
-        
+
+        final cs = Theme.of(context).colorScheme;
+        final bg = cs.primary.withOpacity(0.08); // 연분홍 하이라이트
+
         return Padding(
           padding: const EdgeInsets.only(left: 16),
-          child: GestureDetector(
+          child: InkWell(
+            borderRadius: BorderRadius.circular(14),
             onTap: () => _showTripSelector(context),
             child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
               decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.surfaceContainerHighest.withOpacity(0.5),
-                borderRadius: BorderRadius.circular(8),
+                color: bg,
+                borderRadius: BorderRadius.circular(14),
               ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
+                  const Text('🍒', style: TextStyle(fontSize: 16)),
+                  const SizedBox(width: 8),
                   Text(
                     currentTrip?.name ?? '여행 선택',
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                    ),
+                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
                   ),
                   const SizedBox(width: 4),
-                  Icon(
-                    Icons.keyboard_arrow_down,
-                    size: 16,
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                  ),
+                  Icon(Icons.keyboard_arrow_down, size: 18, color: cs.primary),
                 ],
               ),
             ),

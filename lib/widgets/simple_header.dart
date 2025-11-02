@@ -5,23 +5,19 @@ class SimpleHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     return Padding(
       padding: const EdgeInsets.only(left: 16),
       child: Row(
         children: [
           Container(
-            width: 32,
-            height: 32,
+            width: 36,
+            height: 36,
             decoration: BoxDecoration(
-              color: Theme.of(context).colorScheme.primary,
-              borderRadius: BorderRadius.circular(16),
+              color: cs.primary.withOpacity(0.12),
+              borderRadius: BorderRadius.circular(18),
             ),
-            child: const Center(
-              child: Text(
-                '🍒',
-                style: TextStyle(fontSize: 16),
-              ),
-            ),
+            child: const Center(child: Text('🍒', style: TextStyle(fontSize: 18))),
           ),
         ],
       ),
