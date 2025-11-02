@@ -1,12 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
-import 'dart:io';
-
-// 플랫폼별 조건부 import
+import 'dart:typed_data';
 import 'package:flutter/foundation.dart' show kIsWeb;
 
-// 웹이 아닌 경우에만 카메라 패키지 import
-import 'package:camera/camera.dart' if (dart.library.html) 'package:camera/camera_web.dart';
+import 'package:camera/camera.dart';
 
 class ItemScanner extends StatefulWidget {
   const ItemScanner({super.key});
@@ -30,27 +27,21 @@ class _ItemScannerState extends State<ItemScanner> {
   }
 
   Future<void> _initializeCamera() async {
-    // 웹에서는 카메라 초기화 건너뛰기
-    if (kIsWeb) {
-      setState(() {});
-      return;
-    }
-    
     try {
-      _cameras = await availableCameras();
+      _cameras = await availableCameras(); // 웹/모바일 공통
       if (_cameras != null && _cameras!.isNotEmpty) {
         _cameraController = CameraController(
-          _cameras![0],
+          _cameras!.first,
           ResolutionPreset.high,
           enableAudio: false,
         );
         await _cameraController!.initialize();
-        if (mounted) {
-          setState(() {});
-        }
+        if (!mounted) return;
+        setState(() {});
       }
     } catch (e) {
-      print('카메라 초기화 실패: $e');
+      debugPrint('카메라 초기화 실패: $e');
+      // 웹에서 권한 거부,디바이스 없음 등 다양한 경우가 있으므로 UI는 계속 표시
     }
   }
 
@@ -91,40 +82,40 @@ class _ItemScannerState extends State<ItemScanner> {
         padding: const EdgeInsets.all(32),
         child: Column(
           children: [
-          Container(
-            width: 64,
-            height: 64,
-            decoration: BoxDecoration(
-              color: Theme.of(context).colorScheme.primaryContainer,
-              borderRadius: BorderRadius.circular(32),
-            ),
-            child: Icon(
-              Icons.camera_alt,
-              size: 32,
-              color: Theme.of(context).colorScheme.onPrimaryContainer,
-            ),
-          ),
-          const SizedBox(height: 16),
-          Row(
-            children: [
-              Expanded(
-                child: ElevatedButton.icon(
-                  onPressed: _startCamera,
-                  icon: const Icon(Icons.camera_alt),
-                  label: const Text('카메라 촬영'),
-                ),
+            Container(
+              width: 64,
+              height: 64,
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.primaryContainer,
+                borderRadius: BorderRadius.circular(32),
               ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: _pickImage,
-                  icon: const Icon(Icons.upload),
-                  label: const Text('사진 업로드'),
-                ),
+              child: Icon(
+                Icons.camera_alt,
+                size: 32,
+                color: Theme.of(context).colorScheme.onPrimaryContainer,
               ),
-            ],
-          ),
-        ],
+            ),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: _startCamera,
+                    icon: const Icon(Icons.camera_alt),
+                    label: const Text('카메라 촬영'),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: _pickImage,
+                    icon: const Icon(Icons.upload),
+                    label: const Text('사진 업로드'),
+                  ),
+                ),
+              ],
+            ),
+          ],
         ),
       ),
     );
@@ -140,60 +131,80 @@ class _ItemScannerState extends State<ItemScanner> {
         padding: const EdgeInsets.all(16),
         child: Column(
           children: [
-          ClipRRect(
-            borderRadius: BorderRadius.circular(8),
-            child: SizedBox(
-              height: 300,
-              width: double.infinity,
-              child: Stack(
-                children: [
-                  CameraPreview(_cameraController!),
-                  Container(
-                    decoration: BoxDecoration(
-                      border: Border.all(
-                        color: Theme.of(context).colorScheme.primary.withOpacity(0.5),
-                        width: 2,
+            ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: SizedBox(
+                height: 300,
+                width: double.infinity,
+                child: Stack(
+                  children: [
+                    CameraPreview(_cameraController!),
+                    Container(
+                      decoration: BoxDecoration(
+                        border: Border.all(
+                          color: Theme.of(context)
+                              .colorScheme
+                              .primary
+                              .withOpacity(0.5),
+                          width: 2,
+                        ),
                       ),
-                    ),
-                    child: Center(
-                      child: Container(
-                        width: 200,
-                        height: 200,
-                        decoration: BoxDecoration(
-                          border: Border.all(
-                            color: Theme.of(context).colorScheme.primary,
-                            width: 2,
+                      child: Center(
+                        child: Container(
+                          width: 200,
+                          height: 200,
+                          decoration: BoxDecoration(
+                            border: Border.all(
+                              color: Theme.of(context).colorScheme.primary,
+                              width: 2,
+                            ),
+                            borderRadius: BorderRadius.circular(8),
                           ),
-                          borderRadius: BorderRadius.circular(8),
                         ),
                       ),
                     ),
-                  ),
-                ],
+                    if (kIsWeb)
+                      Positioned(
+                        right: 8,
+                        bottom: 8,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: Colors.black.withOpacity(0.5),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: const Text(
+                            '브라우저 권한 팝업을 허용하세요',
+                            style: TextStyle(color: Colors.white, fontSize: 12),
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
               ),
             ),
-          ),
-          const SizedBox(height: 16),
-          Row(
-            children: [
-              Expanded(
-                child: ElevatedButton.icon(
-                  onPressed: _capturePhoto,
-                  icon: const Icon(Icons.camera_alt),
-                  label: const Text('촬영하기'),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: _capturePhoto,
+                    icon: const Icon(Icons.camera_alt),
+                    label: const Text('촬영하기'),
+                  ),
                 ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: _stopCamera,
-                  icon: const Icon(Icons.close),
-                  label: const Text('취소'),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: _stopCamera,
+                    icon: const Icon(Icons.close),
+                    label: const Text('취소'),
+                  ),
                 ),
-              ),
-            ],
-          ),
-        ],
+              ],
+            ),
+          ],
         ),
       ),
     );
@@ -205,44 +216,44 @@ class _ItemScannerState extends State<ItemScanner> {
         padding: const EdgeInsets.all(16),
         child: Column(
           children: [
-          ClipRRect(
-            borderRadius: BorderRadius.circular(8),
-            child: SizedBox(
-              height: 200,
-              width: double.infinity,
-              child: kIsWeb 
-                ? Image.network(
-                    _selectedImage!.path,
-                    fit: BoxFit.cover,
-                  )
-                : Image.file(
-                    File(_selectedImage!.path),
-                    fit: BoxFit.cover,
-                  ),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: SizedBox(
+                height: 200,
+                width: double.infinity,
+                child: FutureBuilder<Uint8List>(
+                  future: _selectedImage!.readAsBytes(),
+                  builder: (context, snap) {
+                    if (!snap.hasData) {
+                      return const Center(child: CircularProgressIndicator());
+                    }
+                    return Image.memory(snap.data!, fit: BoxFit.cover);
+                  },
+                ),
+              ),
             ),
-          ),
-          const SizedBox(height: 16),
-          if (_isScanning) _buildScanningIndicator(),
-          if (_scanResult != null) _buildScanResult(),
-          const SizedBox(height: 16),
-          Row(
-            children: [
-              Expanded(
-                child: ElevatedButton(
-                  onPressed: _scanResult != null ? _addToPackingList : null,
-                  child: const Text('짐 리스트에 추가'),
+            const SizedBox(height: 16),
+            if (_isScanning) _buildScanningIndicator(),
+            if (_scanResult != null) _buildScanResult(),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: _scanResult != null ? _addToPackingList : null,
+                    child: const Text('짐 리스트에 추가'),
+                  ),
                 ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: OutlinedButton(
-                  onPressed: _resetScan,
-                  child: const Text('다시 스캔'),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: _resetScan,
+                    child: const Text('다시 스캔'),
+                  ),
                 ),
-              ),
-            ],
-          ),
-        ],
+              ],
+            ),
+          ],
         ),
       ),
     );
@@ -271,7 +282,8 @@ class _ItemScannerState extends State<ItemScanner> {
         const SizedBox(height: 8),
         LinearProgressIndicator(
           value: 0.75,
-          backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
+          backgroundColor:
+          Theme.of(context).colorScheme.surfaceContainerHighest,
         ),
       ],
     );
@@ -327,16 +339,21 @@ class _ItemScannerState extends State<ItemScanner> {
                       ),
                     ),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 4),
                       decoration: BoxDecoration(
-                        color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                        color: Theme.of(context)
+                            .colorScheme
+                            .surfaceContainerHighest,
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Text(
                         _scanResult!.category,
                         style: TextStyle(
                           fontSize: 12,
-                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                          color: Theme.of(context)
+                              .colorScheme
+                              .onSurfaceVariant,
                         ),
                       ),
                     ),
@@ -349,13 +366,16 @@ class _ItemScannerState extends State<ItemScanner> {
                       Icon(
                         Icons.info_outline,
                         size: 16,
-                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        color:
+                        Theme.of(context).colorScheme.onSurfaceVariant,
                       ),
                       const SizedBox(width: 4),
                       Text(
                         '용량: ${_scanResult!.volume}',
                         style: TextStyle(
-                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                          color: Theme.of(context)
+                              .colorScheme
+                              .onSurfaceVariant,
                         ),
                       ),
                     ],
@@ -368,13 +388,16 @@ class _ItemScannerState extends State<ItemScanner> {
                       Icon(
                         Icons.info_outline,
                         size: 16,
-                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        color:
+                        Theme.of(context).colorScheme.onSurfaceVariant,
                       ),
                       const SizedBox(width: 4),
                       Text(
                         '용량: ${_scanResult!.weight}',
                         style: TextStyle(
-                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                          color: Theme.of(context)
+                              .colorScheme
+                              .onSurfaceVariant,
                         ),
                       ),
                     ],
@@ -417,32 +440,39 @@ class _ItemScannerState extends State<ItemScanner> {
                     ],
                   ),
                   const SizedBox(height: 8),
-                  ..._scanResult!.restrictions.map((restriction) => Padding(
-                    padding: const EdgeInsets.only(bottom: 4),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Container(
-                          width: 4,
-                          height: 4,
-                          margin: const EdgeInsets.only(top: 6, right: 8),
-                          decoration: BoxDecoration(
-                            color: Theme.of(context).colorScheme.onSurfaceVariant,
-                            shape: BoxShape.circle,
-                          ),
-                        ),
-                        Expanded(
-                          child: Text(
-                            restriction,
-                            style: TextStyle(
-                              fontSize: 14,
-                              color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ..._scanResult!.restrictions.map(
+                        (restriction) => Padding(
+                      padding: const EdgeInsets.only(bottom: 4),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Container(
+                            width: 4,
+                            height: 4,
+                            margin:
+                            const EdgeInsets.only(top: 6, right: 8),
+                            decoration: BoxDecoration(
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .onSurfaceVariant,
+                              shape: BoxShape.circle,
                             ),
                           ),
-                        ),
-                      ],
+                          Expanded(
+                            child: Text(
+                              restriction,
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: Theme.of(context)
+                                    .colorScheme
+                                    .onSurfaceVariant,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
-                  )),
+                  ),
                 ],
               ],
             ),
@@ -481,7 +511,9 @@ class _ItemScannerState extends State<ItemScanner> {
             allowed ? '허용' : '불가',
             style: TextStyle(
               fontSize: 10,
-              color: allowed ? Colors.green.shade700 : Colors.red.shade700,
+              color: allowed
+                  ? Colors.green.shade700
+                  : Colors.red.shade700,
             ),
           ),
         ],
@@ -490,8 +522,11 @@ class _ItemScannerState extends State<ItemScanner> {
   }
 
   Future<void> _startCamera() async {
-    if (_cameraController != null) {
-      await _cameraController!.initialize();
+    if (_cameraController == null) {
+      await _initializeCamera();
+    }
+    if (_cameraController != null &&
+        _cameraController!.value.isInitialized) {
       setState(() {
         _isCameraActive = true;
       });
@@ -505,7 +540,8 @@ class _ItemScannerState extends State<ItemScanner> {
   }
 
   Future<void> _capturePhoto() async {
-    if (_cameraController != null) {
+    if (_cameraController != null &&
+        _cameraController!.value.isInitialized) {
       final image = await _cameraController!.takePicture();
       setState(() {
         _selectedImage = image;
@@ -566,7 +602,8 @@ class _ItemScannerState extends State<ItemScanner> {
     ];
 
     setState(() {
-      _scanResult = mockResults[DateTime.now().millisecondsSinceEpoch % mockResults.length];
+      _scanResult = mockResults[
+      DateTime.now().millisecondsSinceEpoch % mockResults.length];
       _isScanning = false;
     });
   }
@@ -580,7 +617,7 @@ class _ItemScannerState extends State<ItemScanner> {
   }
 
   void _addToPackingList() {
-    // 짐 리스트에 추가하는 로직
+    // 짐 리스트에 추가하는 로직 (Provider 등 연동 지점)
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('짐 리스트에 추가되었습니다')),
     );

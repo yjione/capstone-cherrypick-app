@@ -105,72 +105,72 @@ class _RegulationCheckerState extends State<RegulationChecker> with SingleTicker
         padding: const EdgeInsets.all(24),
         child: Column(
           children: [
-          DropdownButtonFormField<String>(
-            initialValue: _selectedCountry.isEmpty ? null : _selectedCountry,
-            decoration: const InputDecoration(
-              labelText: '목적지 국가',
+            DropdownButtonFormField<String>(
+              initialValue: _selectedCountry.isEmpty ? null : _selectedCountry,
+              decoration: const InputDecoration(
+                labelText: '목적지 국가',
+              ),
+              items: _countries.map((country) {
+                return DropdownMenuItem(
+                  value: country,
+                  child: Text(country),
+                );
+              }).toList(),
+              onChanged: (value) {
+                setState(() {
+                  _selectedCountry = value ?? '';
+                });
+              },
             ),
-            items: _countries.map((country) {
-              return DropdownMenuItem(
-                value: country,
-                child: Text(country),
-              );
-            }).toList(),
-            onChanged: (value) {
-              setState(() {
-                _selectedCountry = value ?? '';
-              });
-            },
-          ),
-          const SizedBox(height: 16),
-          DropdownButtonFormField<String>(
-            initialValue: _selectedAirline.isEmpty ? null : _selectedAirline,
-            decoration: const InputDecoration(
-              labelText: '항공사',
+            const SizedBox(height: 16),
+            DropdownButtonFormField<String>(
+              initialValue: _selectedAirline.isEmpty ? null : _selectedAirline,
+              decoration: const InputDecoration(
+                labelText: '항공사',
+              ),
+              items: _airlines.map((airline) {
+                return DropdownMenuItem(
+                  value: airline,
+                  child: Text(airline),
+                );
+              }).toList(),
+              onChanged: (value) {
+                setState(() {
+                  _selectedAirline = value ?? '';
+                });
+              },
             ),
-            items: _airlines.map((airline) {
-              return DropdownMenuItem(
-                value: airline,
-                child: Text(airline),
-              );
-            }).toList(),
-            onChanged: (value) {
-              setState(() {
-                _selectedAirline = value ?? '';
-              });
-            },
-          ),
-          const SizedBox(height: 24),
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton(
-              onPressed: _selectedCountry.isNotEmpty && _selectedAirline.isNotEmpty && !_isLoading
-                  ? _searchRegulations
-                  : null,
-              child: _isLoading
-                  ? const Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        SizedBox(
-                          width: 16,
-                          height: 16,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        ),
-                        SizedBox(width: 8),
-                        Text('규정 확인 중...'),
-                      ],
-                    )
-                  : const Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.search),
-                        SizedBox(width: 8),
-                        Text('규정 확인하기'),
-                      ],
+            const SizedBox(height: 24),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: _selectedCountry.isNotEmpty && _selectedAirline.isNotEmpty && !_isLoading
+                    ? _searchRegulations
+                    : null,
+                child: _isLoading
+                    ? const Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2),
                     ),
+                    SizedBox(width: 8),
+                    Text('규정 확인 중...'),
+                  ],
+                )
+                    : const Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.search),
+                    SizedBox(width: 8),
+                    Text('규정 확인하기'),
+                  ],
+                ),
+              ),
             ),
-          ),
-        ],
+          ],
         ),
       ),
     );
@@ -232,43 +232,43 @@ class _RegulationCheckerState extends State<RegulationChecker> with SingleTicker
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-          const Row(
-            children: [
-              Icon(
-                Icons.check_circle,
-                color: Colors.green,
-              ),
-              SizedBox(width: 8),
-              Text(
-                '기내 수하물 규정',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w600,
+            const Row(
+              children: [
+                Icon(
+                  Icons.check_circle,
+                  color: Colors.green,
                 ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          Row(
-            children: [
-              Expanded(
-                child: _buildInfoCard(
-                  '최대 무게',
-                  _regulationData!.carryOn.maxWeight,
+                SizedBox(width: 8),
+                Text(
+                  '기내 수하물 규정',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: _buildInfoCard(
-                  '최대 크기',
-                  _regulationData!.carryOn.maxSize,
+              ],
+            ),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                Expanded(
+                  child: _buildInfoCard(
+                    '최대 무게',
+                    _regulationData!.carryOn.maxWeight,
+                  ),
                 ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          _buildLiquidRestrictions(),
-        ],
+                const SizedBox(width: 16),
+                Expanded(
+                  child: _buildInfoCard(
+                    '최대 크기',
+                    _regulationData!.carryOn.maxSize,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            _buildLiquidRestrictions(),
+          ],
         ),
       ),
     );
@@ -279,45 +279,45 @@ class _RegulationCheckerState extends State<RegulationChecker> with SingleTicker
       child: Padding(
         padding: const EdgeInsets.all(24),
         child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Row(
-            children: [
-              Icon(
-                Icons.check_circle,
-                color: Colors.blue,
-              ),
-              SizedBox(width: 8),
-              Text(
-                '위탁 수하물 규정',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w600,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Row(
+              children: [
+                Icon(
+                  Icons.check_circle,
+                  color: Colors.blue,
                 ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          Row(
-            children: [
-              Expanded(
-                child: _buildInfoCard(
-                  '최대 무게',
-                  _regulationData!.checked.maxWeight,
+                SizedBox(width: 8),
+                Text(
+                  '위탁 수하물 규정',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: _buildInfoCard(
-                  '최대 크기',
-                  _regulationData!.checked.maxSize,
+              ],
+            ),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                Expanded(
+                  child: _buildInfoCard(
+                    '최대 무게',
+                    _regulationData!.checked.maxWeight,
+                  ),
                 ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          _buildCheckedRestrictions(),
-        ],
+                const SizedBox(width: 16),
+                Expanded(
+                  child: _buildInfoCard(
+                    '최대 크기',
+                    _regulationData!.checked.maxSize,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            _buildCheckedRestrictions(),
+          ],
         ),
       ),
     );
@@ -328,86 +328,86 @@ class _RegulationCheckerState extends State<RegulationChecker> with SingleTicker
       child: Padding(
         padding: const EdgeInsets.all(24),
         child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Row(
-            children: [
-              Icon(
-                Icons.warning_amber,
-                color: Colors.red,
-              ),
-              SizedBox(width: 8),
-              Text(
-                '금지 품목',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: _regulationData!.prohibited.map((item) {
-              return Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                decoration: BoxDecoration(
-                  color: Colors.red.shade50,
-                  border: Border.all(color: Colors.red.shade200),
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: Text(
-                  item,
-                  style: TextStyle(
-                    color: Colors.red.shade700,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              );
-            }).toList(),
-          ),
-          const SizedBox(height: 16),
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Colors.red.shade50,
-              border: Border.all(color: Colors.red.shade200),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Row(
               children: [
-                Row(
-                  children: [
-                    Icon(
-                      Icons.info_outline,
-                      color: Colors.red.shade600,
-                      size: 16,
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      '중요 안내',
-                      style: TextStyle(
-                        fontWeight: FontWeight.w600,
-                        color: Colors.red.shade800,
-                      ),
-                    ),
-                  ],
+                Icon(
+                  Icons.warning_amber,
+                  color: Colors.red,
                 ),
-                const SizedBox(height: 8),
+                SizedBox(width: 8),
                 Text(
-                  '위 품목들은 기내 및 위탁 수하물 모두 반입이 금지됩니다. 자세한 사항은 해당 항공사 및 공항 보안청에 문의하세요.',
+                  '금지 품목',
                   style: TextStyle(
-                    fontSize: 14,
-                    color: Colors.red.shade700,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
               ],
             ),
-          ),
-        ],
+            const SizedBox(height: 16),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: _regulationData!.prohibited.map((item) {
+                return Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: Colors.red.shade50,
+                    border: Border.all(color: Colors.red.shade200),
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Text(
+                    item,
+                    style: TextStyle(
+                      color: Colors.red.shade700,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                );
+              }).toList(),
+            ),
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.red.shade50,
+                border: Border.all(color: Colors.red.shade200),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.info_outline,
+                        color: Colors.red.shade600,
+                        size: 16,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        '중요 안내',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w600,
+                          color: Colors.red.shade800,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    '위 품목들은 기내 및 위탁 수하물 모두 반입이 금지됩니다. 자세한 사항은 해당 항공사 및 공항 보안청에 문의하세요.',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Colors.red.shade700,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -418,80 +418,52 @@ class _RegulationCheckerState extends State<RegulationChecker> with SingleTicker
       child: Padding(
         padding: const EdgeInsets.all(24),
         child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Row(
-            children: [
-              Icon(
-                Icons.location_on,
-                color: Colors.green,
-              ),
-              SizedBox(width: 8),
-              Text(
-                '면세 한도',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          Row(
-            children: [
-              Expanded(
-                child: _buildDutyFreeItem('🍷', '주류', _regulationData!.dutyFree.alcohol),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: _buildDutyFreeItem('🚬', '담배', _regulationData!.dutyFree.tobacco),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: _buildDutyFreeItem('🌸', '향수', _regulationData!.dutyFree.perfume),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Colors.green.shade50,
-              border: Border.all(color: Colors.green.shade200),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Row(
               children: [
-                Row(
-                  children: [
-                    Icon(
-                      Icons.info_outline,
-                      color: Colors.green.shade600,
-                      size: 16,
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      '면세 한도 안내',
-                      style: TextStyle(
-                        fontWeight: FontWeight.w600,
-                        color: Colors.green.shade800,
-                      ),
-                    ),
-                  ],
+                Icon(
+                  Icons.location_on,
+                  color: Colors.green,
                 ),
-                const SizedBox(height: 8),
+                SizedBox(width: 8),
                 Text(
-                  '위 한도는 성인 1인 기준이며, 국가별로 상이할 수 있습니다. 초과 시 관세가 부과될 수 있으니 주의하세요.',
+                  '면세 한도',
                   style: TextStyle(
-                    fontSize: 14,
-                    color: Colors.green.shade700,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
               ],
             ),
-          ),
-        ],
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                Expanded(
+                  child: _buildDutyFreeItem('🍷', '주류', _regulationData!.dutyFree.alcohol),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: _buildDutyFreeItem('🚬', '담배', _regulationData!.dutyFree.tobacco),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: _buildDutyFreeItem('🌸', '향수', _regulationData!.dutyFree.perfume),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            // 안내 박스도 통일
+            const _NoticeBox(
+              icon: Icons.info_rounded,
+              title: '면세 한도 안내',
+              bullets: [
+                '위 한도는 성인 1인 기준이며 국가별로 상이할 수 있습니다.',
+                '초과 시 관세가 부과될 수 있으니 주의하세요.',
+              ],
+              accent: Color(0xFF10B981),
+            ),
+          ],
         ),
       ),
     );
@@ -527,76 +499,19 @@ class _RegulationCheckerState extends State<RegulationChecker> with SingleTicker
     );
   }
 
+  //통일된 박스들 사용
   Widget _buildLiquidRestrictions() {
+    final data = _regulationData!.carryOn;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          '액체류 제한',
-          style: TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w500,
-          ),
-        ),
+        const Text('액체류 제한', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
         const SizedBox(height: 8),
-        Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: Colors.amber.shade50,
-            border: Border.all(color: Colors.amber.shade200),
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Icon(
-                    Icons.warning_amber,
-                    color: Colors.amber.shade600,
-                    size: 16,
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    _regulationData!.carryOn.liquidLimit,
-                    style: TextStyle(
-                      fontWeight: FontWeight.w600,
-                      color: Colors.amber.shade800,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 8),
-              ..._regulationData!.carryOn.restrictions.map((restriction) {
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: 4),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Container(
-                        width: 4,
-                        height: 4,
-                        margin: const EdgeInsets.only(top: 6, right: 8),
-                        decoration: BoxDecoration(
-                          color: Colors.amber.shade600,
-                          shape: BoxShape.circle,
-                        ),
-                      ),
-                      Expanded(
-                        child: Text(
-                          restriction,
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: Colors.amber.shade700,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                );
-              }),
-            ],
-          ),
+        _NoticeBox(
+          icon: Icons.warning_amber_rounded,
+          title: '액체류 규정',
+          badge: data.liquidLimit, // "100ml (총 1L)"
+          bullets: data.restrictions,
         ),
       ],
     );
@@ -606,86 +521,41 @@ class _RegulationCheckerState extends State<RegulationChecker> with SingleTicker
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          '주의사항',
-          style: TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w500,
-          ),
-        ),
+        const Text('주의사항', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
         const SizedBox(height: 8),
-        Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: Colors.blue.shade50,
-            border: Border.all(color: Colors.blue.shade200),
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              ..._regulationData!.checked.restrictions.map((restriction) {
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: 4),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Container(
-                        width: 4,
-                        height: 4,
-                        margin: const EdgeInsets.only(top: 6, right: 8),
-                        decoration: BoxDecoration(
-                          color: Colors.blue.shade600,
-                          shape: BoxShape.circle,
-                        ),
-                      ),
-                      Expanded(
-                        child: Text(
-                          restriction,
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: Colors.blue.shade700,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                );
-              }),
-            ],
-          ),
+        _NoticeBox(
+          icon: Icons.info_rounded,
+          title: '위탁 수하물 주의사항',
+          bullets: _regulationData!.checked.restrictions,
+          accent: const Color(0xFF3B82F6),
         ),
       ],
     );
   }
 
   Widget _buildDutyFreeItem(String emoji, String title, String limit) {
+    const green = Color(0xFF10B981);
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.fromLTRB(14, 16, 14, 16),
       decoration: BoxDecoration(
-        color: Colors.green.shade50,
-        border: Border.all(color: Colors.green.shade200),
-        borderRadius: BorderRadius.circular(8),
+        color: green.withOpacity(0.06),
+        border: Border.all(color: green.withOpacity(0.18)),
+        borderRadius: BorderRadius.circular(18),
       ),
       child: Column(
         children: [
-          Text(emoji, style: const TextStyle(fontSize: 24)),
-          const SizedBox(height: 8),
-          Text(
-            title,
-            style: TextStyle(
-              fontWeight: FontWeight.w600,
-              color: Colors.green.shade800,
-            ),
-          ),
-          const SizedBox(height: 4),
+          Text(emoji, style: const TextStyle(fontSize: 22)),
+          const SizedBox(height: 10),
+          Text(title, style: const TextStyle(fontWeight: FontWeight.w700, color: green, fontSize: 16)),
+          const SizedBox(height: 6),
           Text(
             limit,
+            textAlign: TextAlign.center,
             style: TextStyle(
               fontSize: 12,
-              color: Colors.green.shade700,
+              height: 1.35,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
             ),
-            textAlign: TextAlign.center,
           ),
         ],
       ),
@@ -782,4 +652,69 @@ class DutyFreeData {
     required this.tobacco,
     required this.perfume,
   });
+}
+
+class _NoticeBox extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final List<String> bullets;
+  final String? badge; // 없으면 null
+  final Color? accent; // 없으면 브랜드 핑크 사용
+
+  const _NoticeBox({
+    required this.icon,
+    required this.title,
+    required this.bullets,
+    this.badge,
+    this.accent,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final Color a = accent ?? cs.primary;
+    final Color bg = a.withOpacity(0.06);
+    final Color br = a.withOpacity(0.18);
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: bg,
+        border: Border.all(color: br),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(children: [
+          Icon(icon, color: a, size: 18),
+          const SizedBox(width: 8),
+          Text(title, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700)),
+          const Spacer(),
+          if (badge != null)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              decoration: BoxDecoration(color: a, borderRadius: BorderRadius.circular(999)),
+              child: Text(
+                badge!,
+                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: cs.onPrimary),
+              ),
+            ),
+        ]),
+        const SizedBox(height: 10),
+        ...bullets.map(
+              (t) => Padding(
+            padding: const EdgeInsets.only(bottom: 6),
+            child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Container(
+                width: 4,
+                height: 4,
+                margin: const EdgeInsets.only(top: 8, right: 8),
+                decoration: BoxDecoration(color: a, borderRadius: BorderRadius.circular(2)),
+              ),
+              Expanded(child: Text(t, style: TextStyle(fontSize: 14, color: cs.onSurfaceVariant))),
+            ]),
+          ),
+        ),
+      ]),
+    );
+  }
 }
