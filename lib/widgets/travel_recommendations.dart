@@ -76,12 +76,14 @@ class _TravelRecommendationsState extends State<TravelRecommendations>
         padding: const EdgeInsets.all(20),
         child: Column(children: [
           Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Expanded(
                 child: DropdownButtonFormField<String>(
                   value: _selectedDestination.isEmpty ? null : _selectedDestination,
                   decoration: const InputDecoration(labelText: '여행지'),
-                  items: _destinations.map((d) => DropdownMenuItem(value: d, child: Text(d))).toList(),
+                  isExpanded: true,
+                  items: _destinations.map((d) => DropdownMenuItem(value: d, child: Text(d, overflow: TextOverflow.ellipsis))).toList(),
                   onChanged: (v) => setState(() => _selectedDestination = v ?? ''),
                 ),
               ),
@@ -90,7 +92,8 @@ class _TravelRecommendationsState extends State<TravelRecommendations>
                 child: DropdownButtonFormField<String>(
                   value: _selectedDuration.isEmpty ? null : _selectedDuration,
                   decoration: const InputDecoration(labelText: '여행 기간'),
-                  items: _durations.map((d) => DropdownMenuItem(value: d, child: Text(d))).toList(),
+                  isExpanded: true,
+                  items: _durations.map((d) => DropdownMenuItem(value: d, child: Text(d, overflow: TextOverflow.ellipsis))).toList(),
                   onChanged: (v) => setState(() => _selectedDuration = v ?? ''),
                 ),
               ),
@@ -400,10 +403,12 @@ class _TravelRecommendationsState extends State<TravelRecommendations>
     return Row(children: [
       Icon(icon, color: color, size: 16),
       const SizedBox(width: 8),
-      Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text(value, style: const TextStyle(fontWeight: FontWeight.w700)),
-        Text(label, style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant)),
-      ]),
+      Expanded(
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(value, style: const TextStyle(fontWeight: FontWeight.w700)),
+          Text(label, style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant)),
+        ]),
+      ),
     ]);
   }
 
