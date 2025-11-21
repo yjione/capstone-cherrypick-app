@@ -7,56 +7,74 @@ class RegulationChecker extends StatefulWidget {
   State<RegulationChecker> createState() => _RegulationCheckerState();
 }
 
-class _RegulationCheckerState extends State<RegulationChecker> with SingleTickerProviderStateMixin {
+class _RegulationCheckerState extends State<RegulationChecker>
+    with SingleTickerProviderStateMixin {
   late TabController _tabController;
-  String _selectedCountry = '';
-  String _selectedAirline = '';
+
+  String? _selectedCountry;
+  String? _selectedAirport;
+  String? _selectedAirline;
+  String? _selectedSeatClass;
+
   bool _isLoading = false;
   RegulationData? _regulationData;
 
-  final List<String> _countries = [
-    '일본',
-    '미국',
-    '중국',
-    '태국',
-    '베트남',
-    '필리핀',
-    '싱가포르',
-    '말레이시아',
-    '인도네시아',
-    '대만',
-    '홍콩',
-    '호주',
-    '뉴질랜드',
-    '영국',
-    '프랑스',
-    '독일',
-    '이탈리아',
-    '스페인',
-    '캐나다',
-    '브라질',
-  ];
+  /// ✅ 국가 → 공항 목록
+  final Map<String, List<String>> _countryAirports = const {
+    '일본': [
+      '나리타(NRT)',
+      '하네다(HND)',
+      '간사이(KIX)',
+    ],
+    '미국': [
+      'LAX(로스앤젤레스)',
+      'JFK(뉴욕)',
+      'SFO(샌프란시스코)',
+    ],
+    '한국': [
+      '인천(ICN)',
+      '김포(GMP)',
+      '김해(PUS)',
+    ],
+  };
 
-  final List<String> _airlines = [
+  /// ✅ 항공사 전체 목록 (국가와 무관)
+  final List<String> _allAirlines = const [
     '대한항공',
     '아시아나항공',
     '제주항공',
-    '진에어',
-    '티웨이항공',
-    '에어부산',
     'JAL',
-    'ANA',
-    '유나이티드',
     '델타',
     '아메리칸항공',
-    '에미레이트',
-    '싱가포르항공',
-    '타이항공',
-    '베트남항공',
-    '세부퍼시픽',
-    '에어아시아',
-    '캐세이퍼시픽',
   ];
+
+  /// ✅ 항공사 → 좌석 등급 (항공사에만 종속)
+  final Map<String, List<String>> _airlineSeatClasses = const {
+    '대한항공': ['이코노미', '프리미엄 이코노미', '비즈니스', '일등석'],
+    '아시아나항공': ['이코노미', '비즈니스'],
+    '제주항공': ['이코노미'],
+    'JAL': ['이코노미', '프리미엄 이코노미', '비즈니스'],
+    '델타': ['이코노미', '비즈니스'],
+    '아메리칸항공': ['이코노미', '비즈니스', '일등석'],
+  };
+
+  // ----- Getter들 -----
+
+  List<String> get _countries => _countryAirports.keys.toList();
+
+  List<String> get _airports {
+    if (_selectedCountry == null) return [];
+    return _countryAirports[_selectedCountry!] ?? [];
+  }
+
+  // 항공사는 국가/공항과 무관하게 동일한 전체 리스트
+  List<String> get _airlines => _allAirlines;
+
+  // 좌석 등급은 항공사에만 종속
+  List<String> get _seatClasses {
+    if (_selectedAirline == null) return [];
+    return _airlineSeatClasses[_selectedAirline!] ?? [];
+  }
 
   @override
   void initState() {
@@ -105,48 +123,111 @@ class _RegulationCheckerState extends State<RegulationChecker> with SingleTicker
         padding: const EdgeInsets.all(24),
         child: Column(
           children: [
+            // 1) 국가 선택
             DropdownButtonFormField<String>(
-              initialValue: _selectedCountry.isEmpty ? null : _selectedCountry,
+              value: _selectedCountry,
               decoration: const InputDecoration(
                 labelText: '목적지 국가',
               ),
-              items: _countries.map((country) {
-                return DropdownMenuItem(
+              items: _countries
+                  .map(
+                    (country) => DropdownMenuItem(
                   value: country,
                   child: Text(country),
-                );
-              }).toList(),
+                ),
+              )
+                  .toList(),
               onChanged: (value) {
                 setState(() {
-                  _selectedCountry = value ?? '';
+                  _selectedCountry = value;
+                  // 국가가 바뀌면 공항만 초기화
+                  _selectedAirport = null;
+                  _selectedSeatClass = null;
+                  _regulationData = null;
                 });
               },
             ),
             const SizedBox(height: 16),
+
+            // 2) 공항 선택 (국가에 종속)
             DropdownButtonFormField<String>(
-              initialValue: _selectedAirline.isEmpty ? null : _selectedAirline,
+              value: _selectedAirport,
+              decoration: const InputDecoration(
+                labelText: '공항',
+              ),
+              items: _airports
+                  .map(
+                    (airport) => DropdownMenuItem(
+                  value: airport,
+                  child: Text(airport),
+                ),
+              )
+                  .toList(),
+              onChanged: (_selectedCountry == null)
+                  ? null
+                  : (value) {
+                setState(() {
+                  _selectedAirport = value;
+                  _regulationData = null;
+                });
+              },
+            ),
+            const SizedBox(height: 16),
+
+            // 3) 항공사 선택 (국가와 무관)
+            DropdownButtonFormField<String>(
+              value: _selectedAirline,
               decoration: const InputDecoration(
                 labelText: '항공사',
               ),
-              items: _airlines.map((airline) {
-                return DropdownMenuItem(
+              items: _airlines
+                  .map(
+                    (airline) => DropdownMenuItem(
                   value: airline,
                   child: Text(airline),
-                );
-              }).toList(),
+                ),
+              )
+                  .toList(),
               onChanged: (value) {
                 setState(() {
-                  _selectedAirline = value ?? '';
+                  _selectedAirline = value;
+                  _selectedSeatClass = null;
+                  _regulationData = null;
+                });
+              },
+            ),
+            const SizedBox(height: 16),
+
+            // 4) 좌석 등급 선택 (항공사에 종속)
+            DropdownButtonFormField<String>(
+              value: _selectedSeatClass,
+              decoration: const InputDecoration(
+                labelText: '좌석 등급',
+              ),
+              items: _seatClasses
+                  .map(
+                    (seat) => DropdownMenuItem(
+                  value: seat,
+                  child: Text(seat),
+                ),
+              )
+                  .toList(),
+              onChanged: (_selectedAirline == null)
+                  ? null
+                  : (value) {
+                setState(() {
+                  _selectedSeatClass = value;
+                  _regulationData = null;
                 });
               },
             ),
             const SizedBox(height: 24),
+
+            // 버튼
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
-                onPressed: _selectedCountry.isNotEmpty && _selectedAirline.isNotEmpty && !_isLoading
-                    ? _searchRegulations
-                    : null,
+                onPressed: _canSearch ? _searchRegulations : null,
                 child: _isLoading
                     ? const Row(
                   mainAxisAlignment: MainAxisAlignment.center,
@@ -176,6 +257,13 @@ class _RegulationCheckerState extends State<RegulationChecker> with SingleTicker
     );
   }
 
+  bool get _canSearch =>
+      !_isLoading &&
+          _selectedCountry != null &&
+          _selectedAirport != null &&
+          _selectedAirline != null &&
+          _selectedSeatClass != null;
+
   Widget _buildResultHeader() {
     return Row(
       children: [
@@ -185,9 +273,10 @@ class _RegulationCheckerState extends State<RegulationChecker> with SingleTicker
         ),
         const SizedBox(width: 8),
         Text(
-          '${_regulationData!.country} - ${_regulationData!.airline}',
+          '${_regulationData!.country} / ${_regulationData!.airport}\n'
+              '${_regulationData!.airline} · ${_regulationData!.seatClass}',
           style: const TextStyle(
-            fontSize: 20,
+            fontSize: 16,
             fontWeight: FontWeight.w600,
           ),
         ),
@@ -352,7 +441,8 @@ class _RegulationCheckerState extends State<RegulationChecker> with SingleTicker
               runSpacing: 8,
               children: _regulationData!.prohibited.map((item) {
                 return Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  padding:
+                  const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                   decoration: BoxDecoration(
                     color: Colors.red.shade50,
                     border: Border.all(color: Colors.red.shade200),
@@ -440,20 +530,22 @@ class _RegulationCheckerState extends State<RegulationChecker> with SingleTicker
             Row(
               children: [
                 Expanded(
-                  child: _buildDutyFreeItem('🍷', '주류', _regulationData!.dutyFree.alcohol),
+                  child: _buildDutyFreeItem(
+                      '🍷', '주류', _regulationData!.dutyFree.alcohol),
                 ),
                 const SizedBox(width: 8),
                 Expanded(
-                  child: _buildDutyFreeItem('🚬', '담배', _regulationData!.dutyFree.tobacco),
+                  child: _buildDutyFreeItem(
+                      '🚬', '담배', _regulationData!.dutyFree.tobacco),
                 ),
                 const SizedBox(width: 8),
                 Expanded(
-                  child: _buildDutyFreeItem('🌸', '향수', _regulationData!.dutyFree.perfume),
+                  child: _buildDutyFreeItem(
+                      '🌸', '향수', _regulationData!.dutyFree.perfume),
                 ),
               ],
             ),
             const SizedBox(height: 16),
-            // 안내 박스도 통일
             const _NoticeBox(
               icon: Icons.info_rounded,
               title: '면세 한도 안내',
@@ -499,18 +591,20 @@ class _RegulationCheckerState extends State<RegulationChecker> with SingleTicker
     );
   }
 
-  //통일된 박스들 사용
   Widget _buildLiquidRestrictions() {
     final data = _regulationData!.carryOn;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text('액체류 제한', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+        const Text(
+          '액체류 제한',
+          style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+        ),
         const SizedBox(height: 8),
         _NoticeBox(
           icon: Icons.warning_amber_rounded,
           title: '액체류 규정',
-          badge: data.liquidLimit, // "100ml (총 1L)"
+          badge: data.liquidLimit,
           bullets: data.restrictions,
         ),
       ],
@@ -521,7 +615,10 @@ class _RegulationCheckerState extends State<RegulationChecker> with SingleTicker
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text('주의사항', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+        const Text(
+          '주의사항',
+          style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+        ),
         const SizedBox(height: 8),
         _NoticeBox(
           icon: Icons.info_rounded,
@@ -546,7 +643,14 @@ class _RegulationCheckerState extends State<RegulationChecker> with SingleTicker
         children: [
           Text(emoji, style: const TextStyle(fontSize: 22)),
           const SizedBox(height: 10),
-          Text(title, style: const TextStyle(fontWeight: FontWeight.w700, color: green, fontSize: 16)),
+          Text(
+            title,
+            style: const TextStyle(
+              fontWeight: FontWeight.w700,
+              color: green,
+              fontSize: 16,
+            ),
+          ),
           const SizedBox(height: 6),
           Text(
             limit,
@@ -562,31 +666,52 @@ class _RegulationCheckerState extends State<RegulationChecker> with SingleTicker
     );
   }
 
+  /// 🔹 여기서는 더미 규정 데이터만 세팅 (Preview API 호출 없음)
   Future<void> _searchRegulations() async {
+    if (!_canSearch) return;
+
     setState(() {
       _isLoading = true;
     });
 
-    // 실제 구현에서는 규정 데이터베이스 API 호출
-    await Future.delayed(const Duration(seconds: 1));
+    await Future.delayed(const Duration(milliseconds: 500));
 
-    // 모의 데이터
+    if (!mounted) return;
+
     setState(() {
       _regulationData = RegulationData(
-        country: _selectedCountry,
-        airline: _selectedAirline,
+        country: _selectedCountry!,
+        airport: _selectedAirport!,
+        airline: _selectedAirline!,
+        seatClass: _selectedSeatClass!,
         carryOn: CarryOnData(
           maxWeight: "10kg",
           maxSize: "55cm × 40cm × 20cm",
           liquidLimit: "100ml (총 1L)",
-          restrictions: ["투명 지퍼백에 보관", "개별 용기 100ml 이하", "1인당 1개 지퍼백만 허용"],
+          restrictions: [
+            "투명 지퍼백에 보관",
+            "개별 용기 100ml 이하",
+            "1인당 1개 지퍼백만 허용",
+          ],
         ),
         checked: CheckedData(
           maxWeight: "23kg",
           maxSize: "158cm (3변의 합)",
-          restrictions: ["리튬배터리 금지", "인화성 물질 금지", "날카로운 물건 주의"],
+          restrictions: [
+            "리튬배터리 금지",
+            "인화성 물질 금지",
+            "날카로운 물건 주의",
+          ],
         ),
-        prohibited: ["폭발물", "인화성 액체", "독성 물질", "방사성 물질", "부식성 물질", "자성 물질", "산화성 물질"],
+        prohibited: [
+          "폭발물",
+          "인화성 액체",
+          "독성 물질",
+          "방사성 물질",
+          "부식성 물질",
+          "자성 물질",
+          "산화성 물질",
+        ],
         dutyFree: DutyFreeData(
           alcohol: "1L (21도 이상 22도 미만) 또는 400ml (22도 이상)",
           tobacco: "담배 200개비 또는 시가 50개비",
@@ -598,9 +723,13 @@ class _RegulationCheckerState extends State<RegulationChecker> with SingleTicker
   }
 }
 
+/// ===== 데이터 모델들 =====
+
 class RegulationData {
   final String country;
+  final String airport;
   final String airline;
+  final String seatClass;
   final CarryOnData carryOn;
   final CheckedData checked;
   final List<String> prohibited;
@@ -608,7 +737,9 @@ class RegulationData {
 
   RegulationData({
     required this.country,
+    required this.airport,
     required this.airline,
+    required this.seatClass,
     required this.carryOn,
     required this.checked,
     required this.prohibited,
@@ -673,48 +804,73 @@ class _NoticeBox extends StatelessWidget {
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     final Color a = accent ?? cs.primary;
-    final Color bg = a.withOpacity(0.06);
-    final Color br = a.withOpacity(0.18);
 
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: bg,
-        border: Border.all(color: br),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Row(children: [
-          Icon(icon, color: a, size: 18),
-          const SizedBox(width: 8),
-          Text(title, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700)),
-          const Spacer(),
-          if (badge != null)
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-              decoration: BoxDecoration(color: a, borderRadius: BorderRadius.circular(999)),
-              child: Text(
-                badge!,
-                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: cs.onPrimary),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // 상단 라인 (아이콘 + 제목 + 뱃지)
+        Row(
+          children: [
+            Icon(icon, color: a, size: 18),
+            const SizedBox(width: 8),
+            Text(
+              title,
+              style: const TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w700,
               ),
             ),
-        ]),
-        const SizedBox(height: 10),
+            const Spacer(),
+            if (badge != null)
+              Container(
+                padding:
+                const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: a,
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: Text(
+                  badge!,
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: cs.onPrimary,
+                  ),
+                ),
+              ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        // 불릿 리스트 (배경 박스 없이)
         ...bullets.map(
               (t) => Padding(
-            padding: const EdgeInsets.only(bottom: 6),
-            child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Container(
-                width: 4,
-                height: 4,
-                margin: const EdgeInsets.only(top: 8, right: 8),
-                decoration: BoxDecoration(color: a, borderRadius: BorderRadius.circular(2)),
-              ),
-              Expanded(child: Text(t, style: TextStyle(fontSize: 14, color: cs.onSurfaceVariant))),
-            ]),
+            padding: const EdgeInsets.only(bottom: 4),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  width: 4,
+                  height: 4,
+                  margin: const EdgeInsets.only(top: 8, right: 8),
+                  decoration: BoxDecoration(
+                    color: a,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+                Expanded(
+                  child: Text(
+                    t,
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: cs.onSurfaceVariant,
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
-      ]),
+      ],
     );
   }
 }
