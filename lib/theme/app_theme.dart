@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 
 class _CPColors {
-  // Brand
-  static const Color primary = Color(0xFFFF4B6E);
-  static const Color primaryStrong = Color(0xFFE93A5E);
-  static const Color primarySoft = Color(0xFFFFEEF1);
+  // Brand — 옵션 C' 루비 체리 Light
+  static const Color primary = Color(0xFFE03A54);        // 루비 체리 (C보다 밝은 버전)
+  static const Color primaryStrong = Color(0xFFCB2948);  // 루비 딥 레드 라이트
+  static const Color primarySoft = Color(0xFFFFE8EC);    // 루비 소프트
 
-  // Grays
+  // Grays (기존 유지)
   static const Color g900 = Color(0xFF111111);
   static const Color g800 = Color(0xFF1F1F1F);
   static const Color g700 = Color(0xFF2E2E2E);
@@ -17,13 +17,13 @@ class _CPColors {
   static const Color g200 = Color(0xFFECECEC);
   static const Color g100 = Color(0xFFF6F6F6);
 
-  // Status
+  // Status (기존 유지)
   static const Color success = Color(0xFF22C55E);
   static const Color warning = Color(0xFFF59E0B);
   static const Color error   = Color(0xFFEF4444);
 
   // Other
-  static const Color shadow10 = Color(0x1A000000); // 10% black
+  static const Color shadow10 = Color(0x1A000000);
 }
 
 class AppTheme {
