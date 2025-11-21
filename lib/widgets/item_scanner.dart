@@ -4,6 +4,14 @@ import 'dart:typed_data';
 import 'package:flutter/foundation.dart' show kIsWeb;
 
 import 'package:camera/camera.dart';
+import 'package:provider/provider.dart';
+
+import '../providers/trip_provider.dart';
+
+// 🔹 Preview API 관련
+import '../providers/preview_provider.dart';
+import '../models/preview_request.dart';
+import '../screens/item_preview_screen.dart';
 
 class ItemScanner extends StatefulWidget {
   const ItemScanner({super.key});
@@ -17,6 +25,8 @@ class _ItemScannerState extends State<ItemScanner> {
   List<CameraDescription>? _cameras;
   bool _isCameraActive = false;
   bool _isScanning = false;
+  bool _isPreviewLoading = false; // 🔹 Preview API 로딩 상태
+
   XFile? _selectedImage;
   ScanResult? _scanResult;
 
@@ -41,7 +51,7 @@ class _ItemScannerState extends State<ItemScanner> {
       }
     } catch (e) {
       debugPrint('카메라 초기화 실패: $e');
-      // 웹에서 권한 거부,디바이스 없음 등 다양한 경우가 있으므로 UI는 계속 표시
+      // 웹에서 권한 거부, 디바이스 없음 등 다양한 경우가 있으므로 UI는 계속 표시
     }
   }
 
@@ -53,18 +63,34 @@ class _ItemScannerState extends State<ItemScanner> {
 
   @override
   Widget build(BuildContext context) {
+    final tripProvider = context.watch<TripProvider>();
+    final currentTrip = tripProvider.currentTrip;
+
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Center(
-            child: Text(
-              '물품 스캔',
-              style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-              ),
+          Center(
+            child: Column(
+              children: [
+                const Text(
+                  '물품 스캔',
+                  style: TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                if (currentTrip != null)
+                  Text(
+                    '${currentTrip.name} 기준',
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+              ],
             ),
           ),
           const SizedBox(height: 24),
@@ -307,19 +333,45 @@ class _ItemScannerState extends State<ItemScanner> {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
               decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                color:
+                Theme.of(context).colorScheme.surfaceContainerHighest,
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Text(
                 '정확도 ${_scanResult!.confidence}%',
                 style: TextStyle(
                   fontSize: 12,
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  color:
+                  Theme.of(context).colorScheme.onSurfaceVariant,
                 ),
               ),
             ),
           ],
         ),
+
+        // 🔹 Preview API 로딩 상태 표시
+        if (_isPreviewLoading) ...[
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              const SizedBox(
+                width: 16,
+                height: 16,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                '상세 판정 불러오는 중...',
+                style: TextStyle(
+                  fontSize: 12,
+                  color:
+                  Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ],
+          ),
+        ],
+
         const SizedBox(height: 16),
         Card(
           child: Padding(
@@ -366,8 +418,9 @@ class _ItemScannerState extends State<ItemScanner> {
                       Icon(
                         Icons.info_outline,
                         size: 16,
-                        color:
-                        Theme.of(context).colorScheme.onSurfaceVariant,
+                        color: Theme.of(context)
+                            .colorScheme
+                            .onSurfaceVariant,
                       ),
                       const SizedBox(width: 4),
                       Text(
@@ -388,8 +441,9 @@ class _ItemScannerState extends State<ItemScanner> {
                       Icon(
                         Icons.info_outline,
                         size: 16,
-                        color:
-                        Theme.of(context).colorScheme.onSurfaceVariant,
+                        color: Theme.of(context)
+                            .colorScheme
+                            .onSurfaceVariant,
                       ),
                       const SizedBox(width: 4),
                       Text(
@@ -421,6 +475,7 @@ class _ItemScannerState extends State<ItemScanner> {
                     ),
                   ],
                 ),
+
                 if (_scanResult!.restrictions.isNotEmpty) ...[
                   const SizedBox(height: 16),
                   const Row(
@@ -449,8 +504,7 @@ class _ItemScannerState extends State<ItemScanner> {
                           Container(
                             width: 4,
                             height: 4,
-                            margin:
-                            const EdgeInsets.only(top: 6, right: 8),
+                            margin: const EdgeInsets.only(top: 6, right: 8),
                             decoration: BoxDecoration(
                               color: Theme.of(context)
                                   .colorScheme
@@ -474,6 +528,19 @@ class _ItemScannerState extends State<ItemScanner> {
                     ),
                   ),
                 ],
+
+                const SizedBox(height: 16),
+
+                // 🔹 여기서 Preview API 호출 버튼
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed:
+                    _isPreviewLoading ? null : _openPreviewForScanResult,
+                    icon: const Icon(Icons.info_outline),
+                    label: const Text('상세 판정 보기'),
+                  ),
+                ),
               ],
             ),
           ),
@@ -568,7 +635,7 @@ class _ItemScannerState extends State<ItemScanner> {
       _scanResult = null;
     });
 
-    // 실제 구현에서는 AI API 호출
+    // 실제 구현에서는 AI/Preview API + 이미지 분석 연동 예정
     await Future.delayed(const Duration(seconds: 2));
 
     // 모의 결과 데이터
@@ -602,8 +669,8 @@ class _ItemScannerState extends State<ItemScanner> {
     ];
 
     setState(() {
-      _scanResult = mockResults[
-      DateTime.now().millisecondsSinceEpoch % mockResults.length];
+      _scanResult =
+      mockResults[DateTime.now().millisecondsSinceEpoch % mockResults.length];
       _isScanning = false;
     });
   }
@@ -613,14 +680,129 @@ class _ItemScannerState extends State<ItemScanner> {
       _selectedImage = null;
       _scanResult = null;
       _isScanning = false;
+      _isPreviewLoading = false;
     });
   }
 
   void _addToPackingList() {
-    // 짐 리스트에 추가하는 로직 (Provider 등 연동 지점)
+    // TODO: 나중에 PackingProvider랑 실제 연동 (현재 Trip 기준으로 추가)
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('짐 리스트에 추가되었습니다')),
     );
+  }
+
+  // =========================================================
+  // 🔹 여기부터 Preview API 연동 부분
+  // =========================================================
+
+  Future<void> _openPreviewForScanResult() async {
+    if (_scanResult == null) return;
+
+    final tripProvider = context.read<TripProvider>();
+    final currentTrip = tripProvider.currentTrip;
+
+    if (currentTrip == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('먼저 여행 정보를 설정해 주세요.')),
+      );
+      return;
+    }
+
+    setState(() {
+      _isPreviewLoading = true;
+    });
+
+    try {
+      final previewProvider = context.read<PreviewProvider>();
+
+      // 🔹 목적지 공항 코드 추출 (Trip.destination에서 괄호 안 코드 뽑기 시도)
+      // 예: "일본 나리타(NRT)" → "NRT"
+      String extractAirportCode(String destination) {
+        final start = destination.indexOf('(');
+        final end = destination.indexOf(')');
+
+        if (start != -1 && end != -1 && end > start + 1) {
+          final inside = destination.substring(start + 1, end).trim();
+          final isCode = inside.length == 3 &&
+              RegExp(r'^[A-Za-z]+$').hasMatch(inside);
+          if (isCode) return inside.toUpperCase();
+        }
+
+        // 괄호가 없으면 앞 3글자 정도를 코드처럼 사용하는 임시 로직
+        final trimmed = destination.trim();
+        if (trimmed.length >= 3) {
+          return trimmed.substring(0, 3).toUpperCase();
+        }
+        // 완전 없으면 그냥 NRT 같은 기본값 사용 (임시)
+        return 'NRT';
+      }
+
+      // 🔹 좌석 등급/항공사 정보는 아직 Trip에 없으므로 임시값 사용
+      const fromAirport = 'ICN';
+      final toAirport = extractAirportCode(currentTrip.destination);
+      const airlineCode = 'KE'; // TODO: Trip에 항공사 필드 추가 후 교체
+      const cabinClass = 'economy'; // TODO: Trip에 좌석 등급 필드 추가 후 교체
+
+      // 🔹 아이템 정보도 아직 구조화 안되어 있으니 대략적인 값 사용
+      final request = PreviewRequest(
+        label: _scanResult!.item, // 스캔된 아이템 이름
+        locale: 'ko-KR',
+        reqId: DateTime.now().millisecondsSinceEpoch.toString(),
+        itinerary: Itinerary(
+          from: fromAirport,
+          to: toAirport,
+          via: const [],
+          rescreening: false,
+        ),
+        segments: [
+          Segment(
+            leg: '$fromAirport-$toAirport',
+            operating: airlineCode,
+            cabinClass: cabinClass,
+          ),
+        ],
+        itemParams: ItemParams(
+          volumeMl: 100, // TODO: _scanResult.volume 파싱해서 반영 가능
+          wh: 0,
+          count: 1,
+          abvPercent: 0,
+          weightKg: 0.2,
+          bladeLengthCm: 0,
+        ),
+        dutyFree: DutyFree(
+          isDf: false,
+          stebSealed: false,
+        ),
+      );
+
+      await previewProvider.fetchPreview(request);
+
+      if (!mounted) return;
+
+      if (previewProvider.errorMessage != null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              '아이템 판정 조회 중 오류가 발생했습니다.\n${previewProvider.errorMessage}',
+            ),
+          ),
+        );
+      } else if (previewProvider.preview != null) {
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => ItemPreviewScreen(
+              data: previewProvider.preview!,
+            ),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isPreviewLoading = false;
+        });
+      }
+    }
   }
 }
 
