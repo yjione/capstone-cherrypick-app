@@ -23,6 +23,7 @@ class TripApiService {
         'Accept': 'application/json',
         'X-Device-UUID': deviceUuid,
         'X-Device-Token': deviceToken,
+        'ngrok-skip-browser-warning': 'true',
       },
       body: jsonEncode({
         'flight_code': flightCode,
@@ -30,11 +31,8 @@ class TripApiService {
       }),
     );
 
-    // 200 OK 또는 201 Created 둘 다 성공으로 인정
     if (resp.statusCode != 200 && resp.statusCode != 201) {
-      throw Exception(
-        'Lookup flight failed: ${resp.statusCode} ${resp.body}',
-      );
+      throw Exception('Lookup flight failed: ${resp.statusCode} ${resp.body}');
     }
 
     final Map<String, dynamic> body =
@@ -43,7 +41,6 @@ class TripApiService {
   }
 
   /// ---------------- Create Trip ----------------
-  /// startDate, endDate → nullable 로 변경 (요청 바디에 null로 들어가게)
   Future<CreatedTrip> createTrip({
     required String deviceUuid,
     required String deviceToken,
@@ -59,13 +56,12 @@ class TripApiService {
   }) async {
     final url = Uri.parse('$_baseUrl/v1/trips');
 
-    // null 그대로 보내기 위해 Map으로 구성
-    final Map<String, dynamic> body = {
+    final body = <String, dynamic>{
       'title': title,
       'from_airport': fromAirport,
       'to_airport': toAirport,
-      'start_date': startDate, // null 가능
-      'end_date': endDate, // null 가능
+      'start_date': startDate,
+      'end_date': endDate,
       'note': note,
       'tags': tags,
       'via_airports': viaAirports,
@@ -79,26 +75,65 @@ class TripApiService {
         'Accept': 'application/json',
         'X-Device-UUID': deviceUuid,
         'X-Device-Token': deviceToken,
+        'ngrok-skip-browser-warning': 'true',
       },
       body: jsonEncode(body),
     );
 
-    // 200 OK 또는 201 Created 둘 다 성공
     if (resp.statusCode != 200 && resp.statusCode != 201) {
-      throw Exception(
-        'Create trip failed: ${resp.statusCode} ${resp.body}',
-      );
+      throw Exception('Create trip failed: ${resp.statusCode} ${resp.body}');
     }
 
     final Map<String, dynamic> data =
     jsonDecode(resp.body) as Map<String, dynamic>;
     return CreatedTrip.fromJson(data);
   }
+
+  /// ---------------- List Trips (GET /v1/trips) ----------------
+  Future<TripListResponse> listTrips({
+    required String deviceUuid,
+    required String deviceToken,
+    String status = 'all', // ✅ 기본값을 active -> all 로 변경
+    int limit = 20,
+    int offset = 0,
+  }) async {
+    final uri = Uri.parse('$_baseUrl/v1/trips').replace(queryParameters: {
+      'status': status,
+      'limit': '$limit',
+      'offset': '$offset',
+    });
+
+    final resp = await http.get(
+      uri,
+      headers: {
+        'Accept': 'application/json',
+        'X-Device-UUID': deviceUuid,
+        'X-Device-Token': deviceToken,
+        'ngrok-skip-browser-warning': 'true',
+      },
+    );
+
+    // HTML이 오면 강제 에러 처리
+    final contentType = resp.headers['content-type'] ?? '';
+
+    if (!contentType.startsWith('application/json')) {
+      throw Exception(
+          'Unexpected response (HTML instead of JSON):\n${resp.body}');
+    }
+
+    if (resp.statusCode != 200) {
+      throw Exception('List trips failed: ${resp.statusCode} ${resp.body}');
+    }
+
+    final Map<String, dynamic> json =
+    jsonDecode(resp.body) as Map<String, dynamic>;
+    return TripListResponse.fromJson(json);
+  }
 }
 
-//// ==================== Models ====================
+/// ================== 모델들 ==================
 
-/// lookup-flight 응답용 간단 모델
+// 이하 모델들은 그대로
 class FlightLookupResult {
   final String flightIata;
   final String airlineName;
@@ -136,28 +171,15 @@ class FlightLookupResult {
     final arr = (json['arrival'] ?? {}) as Map<String, dynamic>;
     final hint = (json['segment_hint'] ?? {}) as Map<String, dynamic>;
 
-    // departure UTC 선택: hint → dep.scheduled → 빈 문자열
-    String _pickDepartureTime() {
-      if (hint['departure_time_utc'] is String &&
-          (hint['departure_time_utc'] as String).isNotEmpty) {
-        return hint['departure_time_utc'] as String;
+    String _pickTime(String key) {
+      if (hint[key] is String && (hint[key] as String).isNotEmpty) {
+        return hint[key] as String;
       }
-      if (dep['scheduled_time_utc'] is String &&
-          (dep['scheduled_time_utc'] as String).isNotEmpty) {
-        return dep['scheduled_time_utc'] as String;
+      if (dep[key] is String && (dep[key] as String).isNotEmpty) {
+        return dep[key] as String;
       }
-      return '';
-    }
-
-    // arrival UTC 선택: hint → arr.scheduled → 빈 문자열
-    String _pickArrivalTime() {
-      if (hint['arrival_time_utc'] is String &&
-          (hint['arrival_time_utc'] as String).isNotEmpty) {
-        return hint['arrival_time_utc'] as String;
-      }
-      if (arr['scheduled_time_utc'] is String &&
-          (arr['scheduled_time_utc'] as String).isNotEmpty) {
-        return arr['scheduled_time_utc'] as String;
+      if (arr[key] is String && (arr[key] as String).isNotEmpty) {
+        return arr[key] as String;
       }
       return '';
     }
@@ -169,43 +191,20 @@ class FlightLookupResult {
       departureAirportIata: dep['airport_iata'] as String? ?? '',
       departureAirportName: dep['airport_name'] as String? ?? '',
       departureCountry: dep['country'] as String? ?? '',
-      departureTimeUtc: _pickDepartureTime(),
+      departureTimeUtc: _pickTime('scheduled_time_utc'),
       arrivalAirportIata: arr['airport_iata'] as String? ?? '',
       arrivalAirportName: arr['airport_name'] as String? ?? '',
       arrivalCountry: arr['country'] as String? ?? '',
-      arrivalTimeUtc: _pickArrivalTime(),
+      arrivalTimeUtc: _pickTime('scheduled_time_utc'),
       leg: hint['leg'] as String?,
     );
   }
-
-  /// `YYYY-MM-DD` 형식으로 변환 (실패 시 빈 문자열)
-  String get departureDate {
-    if (departureTimeUtc.isEmpty) return '';
-    try {
-      return DateTime.parse(departureTimeUtc)
-          .toIso8601String()
-          .split('T')
-          .first;
-    } catch (_) {
-      return '';
-    }
-  }
-
-  String get arrivalDate {
-    if (arrivalTimeUtc.isEmpty) return '';
-    try {
-      return DateTime.parse(arrivalTimeUtc).toIso8601String().split('T').first;
-    } catch (_) {
-      return '';
-    }
-  }
 }
 
-/// Trip 생성 시 segments에 넣을 입력 모델
 class TripSegmentInput {
-  final String leg; // 예: "ICN-LAX"
-  final String operating; // 항공사 IATA 코드 (KE, OZ 등)
-  final String cabinClass; // economy, business 등
+  final String leg;
+  final String operating;
+  final String cabinClass;
 
   TripSegmentInput({
     required this.leg,
@@ -220,11 +219,10 @@ class TripSegmentInput {
   };
 }
 
-/// /v1/trips 응답의 중요한 부분만 사용
 class CreatedTrip {
   final int tripId;
   final String title;
-  final String startDate; // 서버가 null 주면 '' 로 들어옴
+  final String startDate;
   final String endDate;
   final String? from;
   final String? to;
@@ -247,6 +245,64 @@ class CreatedTrip {
       endDate: json['end_date'] as String? ?? '',
       from: itinerary['from'] as String?,
       to: itinerary['to'] as String?,
+    );
+  }
+}
+
+class TripListItem {
+  final int tripId;
+  final String title;
+  final String? startDate;
+  final String? endDate;
+  final String? fromAirport;
+  final String? toAirport;
+  final bool active;
+  final String? archivedAt;
+
+  TripListItem({
+    required this.tripId,
+    required this.title,
+    this.startDate,
+    this.endDate,
+    this.fromAirport,
+    this.toAirport,
+    required this.active,
+    this.archivedAt,
+  });
+
+  factory TripListItem.fromJson(Map<String, dynamic> json) {
+    return TripListItem(
+      tripId: json['trip_id'] as int,
+      title: json['title'] as String? ?? '',
+      startDate: json['start_date'] as String?,
+      endDate: json['end_date'] as String?,
+      fromAirport: json['from_airport'] as String?,
+      toAirport: json['to_airport'] as String?,
+      active: json['active'] as bool? ?? false,
+      archivedAt: json['archived_at'] as String?,
+    );
+  }
+}
+
+class TripListResponse {
+  final List<TripListItem> items;
+  final int nextOffset;
+  final bool hasMore;
+
+  TripListResponse({
+    required this.items,
+    required this.nextOffset,
+    required this.hasMore,
+  });
+
+  factory TripListResponse.fromJson(Map<String, dynamic> json) {
+    final List<dynamic> rawItems = json['items'] as List<dynamic>? ?? [];
+    return TripListResponse(
+      items: rawItems
+          .map((e) => TripListItem.fromJson(e as Map<String, dynamic>))
+          .toList(),
+      nextOffset: json['next_offset'] as int? ?? 0,
+      hasMore: json['has_more'] as bool? ?? false,
     );
   }
 }

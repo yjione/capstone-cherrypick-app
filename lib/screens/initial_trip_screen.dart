@@ -82,6 +82,8 @@ class _InitialTripScreenState extends State<InitialTripScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final deviceProvider = context.read<DeviceProvider>();
 
+      debugPrint('🔧 [InitialTripScreen] registerIfNeeded 호출');
+
       deviceProvider.registerIfNeeded(
         appVersion: '1.0.0',
         os: 'android', // TODO: 실제 플랫폼에 맞게 수정
@@ -145,15 +147,20 @@ class _InitialTripScreenState extends State<InitialTripScreen> {
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
 
+    debugPrint('▶️ [_submit] start, inputMode=$_inputMode');
+
     final tripProvider = context.read<TripProvider>();
     final deviceProvider = context.read<DeviceProvider>();
 
     final deviceUuid = deviceProvider.deviceUuid;
     final deviceToken = deviceProvider.deviceToken;
 
-    if ((_inputMode == 0) &&
-        (deviceUuid == null || deviceToken == null)) {
+    debugPrint(
+        '▶️ deviceUuid=$deviceUuid, deviceToken=${deviceToken != null ? 'exists' : 'null'}');
+
+    if ((_inputMode == 0) && (deviceUuid == null || deviceToken == null)) {
       _showError('기기 등록 중입니다. 잠시 후 다시 시도해 주세요.');
+      debugPrint('⛔ device 정보 없음 → submit 중단');
       return;
     }
 
@@ -175,23 +182,19 @@ class _InitialTripScreenState extends State<InitialTripScreen> {
         final goCode = _outboundFlightController.text.trim();
         final backCode = _returnFlightController.text.trim();
 
-        // 1) lookup-flight (가는 편)
+        debugPrint('✈️ lookup outbound flight: $goCode');
         final goFlight = await _tripApi.lookupFlight(
           deviceUuid: deviceUuid!,
           deviceToken: deviceToken!,
           flightCode: goCode,
         );
 
-        // 2) lookup-flight (오는 편)
+        debugPrint('✈️ lookup return flight: $backCode');
         final backFlight = await _tripApi.lookupFlight(
           deviceUuid: deviceUuid,
           deviceToken: deviceToken,
           flightCode: backCode,
         );
-
-        // 🔸 날짜는 더 이상 여기서 만들지 않음
-        // final startDate = ...
-        // final endDate   = ...
 
         final title =
         titleInput.isEmpty ? '$goCode / $backCode 여행' : titleInput;
@@ -199,16 +202,19 @@ class _InitialTripScreenState extends State<InitialTripScreen> {
         // 🔹 segments: 왕복 두 구간
         final segments = <TripSegmentInput>[
           TripSegmentInput(
-            leg: _buildLegString(goFlight),     // 예: ICN-ATL
-            operating: goFlight.airlineIata,    // 예: KE
+            leg: _buildLegString(goFlight), // 예: ICN-ATL
+            operating: goFlight.airlineIata, // 예: KE
             cabinClass: 'economy',
           ),
           TripSegmentInput(
-            leg: _buildLegString(backFlight),   // 예: LAX-ICN
+            leg: _buildLegString(backFlight), // 예: LAX-ICN
             operating: backFlight.airlineIata,
             cabinClass: 'economy',
           ),
         ];
+
+        debugPrint(
+            '📤 createTrip 요청: title=$title, from=${goFlight.departureAirportIata}, to=${backFlight.arrivalAirportIata}');
 
         // 3) 서버에 Trip 생성 (startDate, endDate → null)
         final created = await _tripApi.createTrip(
@@ -217,23 +223,24 @@ class _InitialTripScreenState extends State<InitialTripScreen> {
           title: title,
           fromAirport: goFlight.departureAirportIata,
           toAirport: backFlight.arrivalAirportIata,
-          startDate: null,   // ★ 여기
-          endDate: null,     // ★ 여기
+          startDate: null, // 날짜는 서버/추후 단계에서
+          endDate: null,
           segments: segments,
         );
 
-        // 4) 로컬 Trip 모델로 변환 (서버가 알아서 날짜 채워주면 그걸 사용)
+        debugPrint('✅ createTrip 성공: tripId=${created.tripId}');
+
+        // 4) 로컬 Trip 모델로 변환
         final duration = _calcDuration(created.startDate, created.endDate);
 
         newTrip = Trip(
           id: created.tripId.toString(),
           name: created.title,
           destination: created.to ?? backFlight.arrivalAirportName,
-          startDate: created.startDate,   // 서버가 null 주면 빈 문자열 처리하고 싶으면 여기서 처리
+          startDate: created.startDate,
           duration: duration,
         );
-      }
-      else {
+      } else {
         // 🔹 기존 수동 입력 로직 (서버 연동은 나중에 추가해도 됨)
         final newId = DateTime.now().millisecondsSinceEpoch.toString();
         final today = _todayIso();
@@ -255,18 +262,24 @@ class _InitialTripScreenState extends State<InitialTripScreen> {
           duration: '왕복 · $airline · $seatClass',
         );
 
-        debugPrint('왕복 경로: $fromCountry $fromAirport → $toCountry $toAirport');
+        debugPrint(
+            '🧳 수동 입력 Trip 생성: $fromCountry $fromAirport → $toCountry $toAirport');
       }
 
       // ✅ TripProvider에 저장 + 현재 Trip으로 선택
       tripProvider.addTrip(newTrip);
+      tripProvider.setCurrentTrip(newTrip.id);
+      debugPrint(
+          '✅ TripProvider 업데이트 완료: trips=${tripProvider.trips.length}, currentTripId=${tripProvider.currentTripId}');
 
       if (mounted) {
         Navigator.of(context, rootNavigator: true).pop(); // 로딩 닫기
+        debugPrint('➡️ /luggage 로 이동');
         context.go('/luggage');
       }
-    } catch (e) {
+    } catch (e, st) {
       Navigator.of(context, rootNavigator: true).pop(); // 로딩 닫기
+      debugPrint('❌ [_submit] 에러: $e\n$st');
       _showError('여행 정보를 불러오지 못했어요.\n${e.toString()}');
     }
   }
