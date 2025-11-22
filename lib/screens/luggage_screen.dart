@@ -7,6 +7,7 @@ import '../widgets/bottom_navigation.dart';
 import '../widgets/packing_manager.dart';
 import '../providers/packing_provider.dart';
 import '../providers/trip_provider.dart';
+import '../providers/device_provider.dart';
 import '../models/trip.dart';
 
 class LuggageScreen extends StatefulWidget {
@@ -19,6 +20,24 @@ class LuggageScreen extends StatefulWidget {
 class _LuggageScreenState extends State<LuggageScreen> {
   /// 🔎 상단 검색창 컨트롤러
   final TextEditingController _searchController = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+
+    /// 화면 진입 시 한 번 서버에서 여행 목록 가져오기
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      final device = context.read<DeviceProvider>();
+      final tripProvider = context.read<TripProvider>();
+
+      if (device.deviceUuid != null && device.deviceToken != null) {
+        await tripProvider.fetchTripsFromServer(
+          deviceUuid: device.deviceUuid!,
+          deviceToken: device.deviceToken!,
+        );
+      }
+    });
+  }
 
   @override
   void dispose() {
@@ -34,19 +53,55 @@ class _LuggageScreenState extends State<LuggageScreen> {
     final tripProvider = context.watch<TripProvider>();
     final List<Trip> trips = tripProvider.trips;
     final currentTrip = tripProvider.currentTrip;
+    final isLoadingTrips = tripProvider.isLoading;
 
     final scheme = Theme.of(context).colorScheme;
     final textColor = scheme.onSurface;
 
-    // 🔹 1) 여행이 하나도 없으면 첫 여행 설정 화면으로 보내기
-    if (trips.isEmpty) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        context.go('/initial-trip');
-      });
-      return const SizedBox.shrink();
+    /// 0) 서버에서 여행 목록 로딩 중이면 로딩 화면
+    if (isLoadingTrips) {
+      return Scaffold(
+        backgroundColor: scheme.surface,
+        appBar: AppBar(
+          title: const Text('cherry pick'),
+          centerTitle: true,
+        ),
+        body: const Center(
+          child: CircularProgressIndicator(),
+        ),
+        bottomNavigationBar: const BottomNavigation(currentIndex: 0),
+      );
     }
 
-    // 🔹 2) 여행은 있는데 currentTrip이 null인 예외 상황 방어
+    /// 1) 로딩 끝났는데 등록된 여행이 하나도 없음 → 안내 화면
+    if (trips.isEmpty) {
+      return Scaffold(
+        backgroundColor: scheme.surface,
+        appBar: AppBar(
+          title: const Text('cherry pick'),
+          centerTitle: true,
+        ),
+        body: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                '등록된 여행이 없어요.',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+              ),
+              const SizedBox(height: 8),
+              ElevatedButton(
+                onPressed: () => context.go('/initial-trip'),
+                child: const Text('첫 여행 설정하러 가기'),
+              ),
+            ],
+          ),
+        ),
+        bottomNavigationBar: const BottomNavigation(currentIndex: 0),
+      );
+    }
+
+    /// 2) 여행은 있는데 currentTrip이 null 인 경우 → 첫 번째 여행을 선택
     if (currentTrip == null) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (tripProvider.trips.isNotEmpty) {
@@ -156,8 +211,6 @@ class _LuggageScreenState extends State<LuggageScreen> {
                     ),
                   ),
                   cursorColor: textColor.withOpacity(0.8),
-
-                  /// ✅ 여기서 검색어를 PackingProvider 에 반영
                   onChanged: (value) {
                     context.read<PackingProvider>().setSearchQuery(value);
                   },
