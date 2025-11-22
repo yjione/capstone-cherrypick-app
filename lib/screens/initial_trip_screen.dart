@@ -5,7 +5,8 @@ import 'package:provider/provider.dart';
 
 import '../models/trip.dart';
 import '../providers/trip_provider.dart';
-import '../providers/device_provider.dart'; // ✔️ 추가됨
+import '../providers/device_provider.dart';
+import '../service/trip_api.dart';
 
 class InitialTripScreen extends StatefulWidget {
   const InitialTripScreen({super.key});
@@ -19,6 +20,9 @@ class _InitialTripScreenState extends State<InitialTripScreen> {
   int _inputMode = 0;
 
   final _formKey = GlobalKey<FormState>();
+
+  // --- 여행 이름 ---
+  final _tripTitleController = TextEditingController();
 
   // --- 편명 입력용 (왕복) ---
   final _outboundFlightController = TextEditingController();
@@ -68,17 +72,19 @@ class _InitialTripScreenState extends State<InitialTripScreen> {
   List<String> get _seatClassesForSelectedAirline =>
       _airline == null ? [] : _airlineSeatClasses[_airline!] ?? [];
 
-  // ✔️ 추가된 부분: 앱 시작 시 Device 등록
+  final TripApiService _tripApi = TripApiService();
+
   @override
   void initState() {
     super.initState();
 
+    // 앱 첫 진입 시 기기 등록 시도
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final deviceProvider = context.read<DeviceProvider>();
 
       deviceProvider.registerIfNeeded(
         appVersion: '1.0.0',
-        os: 'android', // TODO: 플랫폼에 맞게 수정
+        os: 'android', // TODO: 실제 플랫폼에 맞게 수정
         model: 'test-device',
         locale: 'ko-KR',
         timezone: '+09:00',
@@ -89,9 +95,16 @@ class _InitialTripScreenState extends State<InitialTripScreen> {
 
   @override
   void dispose() {
+    _tripTitleController.dispose();
     _outboundFlightController.dispose();
     _returnFlightController.dispose();
     super.dispose();
+  }
+
+  void _showError(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message)),
+    );
   }
 
   String _todayIso() {
@@ -101,47 +114,161 @@ class _InitialTripScreenState extends State<InitialTripScreen> {
     return '${now.year}-$mm-$dd';
   }
 
-  void _submit() {
+  String _calcDuration(String startDate, String endDate) {
+    try {
+      final s = DateTime.parse(startDate);
+      final e = DateTime.parse(endDate);
+      final days = e.difference(s).inDays;
+      if (days <= 0) return '당일치기';
+      return '${days}박 ${days + 1}일';
+    } catch (_) {
+      return '';
+    }
+  }
+
+  /// lookup-flight 결과로부터 leg 문자열 생성 (예: ICN-LAX)
+  String _buildLegString(FlightLookupResult flight) {
+    final dep = flight.departureAirportIata;
+    final arr = flight.arrivalAirportIata;
+
+    if (dep.isNotEmpty && arr.isNotEmpty) {
+      return '$dep-$arr'; // 3 + 1 + 3 = 7글자
+    }
+
+    if (flight.leg != null && flight.leg!.length >= 7) {
+      return flight.leg!;
+    }
+
+    return 'UNKNOWN'; // 최소 7글자 확보용 fallback
+  }
+
+  Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
 
     final tripProvider = context.read<TripProvider>();
-    final newId = DateTime.now().millisecondsSinceEpoch.toString();
-    final today = _todayIso();
+    final deviceProvider = context.read<DeviceProvider>();
 
-    Trip newTrip;
+    final deviceUuid = deviceProvider.deviceUuid;
+    final deviceToken = deviceProvider.deviceToken;
 
-    if (_inputMode == 0) {
-      // 편명 입력
-      final go = _outboundFlightController.text.trim();
-      final back = _returnFlightController.text.trim();
-
-      newTrip = Trip(
-        id: newId,
-        name: '$go / $back 왕복 여행',
-        destination: '미정',
-        startDate: today,
-        duration: '왕복',
-      );
-    } else {
-      // 국가·공항·항공사·좌석 입력
-      final fromCountry = _fromCountry!;
-      final fromAirport = _fromAirport!;
-      final toCountry = _toCountry!;
-      final toAirport = _toAirport!;
-      final airline = _airline!;
-      final seatClass = _seatClass!;
-
-      newTrip = Trip(
-        id: newId,
-        name: '$toCountry 여행',
-        destination: '$toCountry $toAirport',
-        startDate: today,
-        duration: '왕복 · $airline · $seatClass',
-      );
+    if ((_inputMode == 0) &&
+        (deviceUuid == null || deviceToken == null)) {
+      _showError('기기 등록 중입니다. 잠시 후 다시 시도해 주세요.');
+      return;
     }
 
-    tripProvider.addTrip(newTrip);
-    context.go('/luggage');
+    final titleInput = _tripTitleController.text.trim();
+
+    // 로딩 다이얼로그
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const Center(child: CircularProgressIndicator()),
+    );
+
+    try {
+      Trip newTrip;
+
+      if (_inputMode == 0) {
+        // 🔹 편명 기반 Trip 생성 (lookup-flight + create trip)
+
+        final goCode = _outboundFlightController.text.trim();
+        final backCode = _returnFlightController.text.trim();
+
+        // 1) lookup-flight (가는 편)
+        final goFlight = await _tripApi.lookupFlight(
+          deviceUuid: deviceUuid!,
+          deviceToken: deviceToken!,
+          flightCode: goCode,
+        );
+
+        // 2) lookup-flight (오는 편)
+        final backFlight = await _tripApi.lookupFlight(
+          deviceUuid: deviceUuid,
+          deviceToken: deviceToken,
+          flightCode: backCode,
+        );
+
+        // 🔸 날짜는 더 이상 여기서 만들지 않음
+        // final startDate = ...
+        // final endDate   = ...
+
+        final title =
+        titleInput.isEmpty ? '$goCode / $backCode 여행' : titleInput;
+
+        // 🔹 segments: 왕복 두 구간
+        final segments = <TripSegmentInput>[
+          TripSegmentInput(
+            leg: _buildLegString(goFlight),     // 예: ICN-ATL
+            operating: goFlight.airlineIata,    // 예: KE
+            cabinClass: 'economy',
+          ),
+          TripSegmentInput(
+            leg: _buildLegString(backFlight),   // 예: LAX-ICN
+            operating: backFlight.airlineIata,
+            cabinClass: 'economy',
+          ),
+        ];
+
+        // 3) 서버에 Trip 생성 (startDate, endDate → null)
+        final created = await _tripApi.createTrip(
+          deviceUuid: deviceUuid,
+          deviceToken: deviceToken,
+          title: title,
+          fromAirport: goFlight.departureAirportIata,
+          toAirport: backFlight.arrivalAirportIata,
+          startDate: null,   // ★ 여기
+          endDate: null,     // ★ 여기
+          segments: segments,
+        );
+
+        // 4) 로컬 Trip 모델로 변환 (서버가 알아서 날짜 채워주면 그걸 사용)
+        final duration = _calcDuration(created.startDate, created.endDate);
+
+        newTrip = Trip(
+          id: created.tripId.toString(),
+          name: created.title,
+          destination: created.to ?? backFlight.arrivalAirportName,
+          startDate: created.startDate,   // 서버가 null 주면 빈 문자열 처리하고 싶으면 여기서 처리
+          duration: duration,
+        );
+      }
+      else {
+        // 🔹 기존 수동 입력 로직 (서버 연동은 나중에 추가해도 됨)
+        final newId = DateTime.now().millisecondsSinceEpoch.toString();
+        final today = _todayIso();
+
+        final fromCountry = _fromCountry!;
+        final fromAirport = _fromAirport!;
+        final toCountry = _toCountry!;
+        final toAirport = _toAirport!;
+        final airline = _airline!;
+        final seatClass = _seatClass!;
+
+        final title = titleInput.isEmpty ? '$toCountry 여행' : titleInput;
+
+        newTrip = Trip(
+          id: newId,
+          name: title,
+          destination: '$toCountry $toAirport',
+          startDate: today,
+          duration: '왕복 · $airline · $seatClass',
+        );
+
+        debugPrint('왕복 경로: $fromCountry $fromAirport → $toCountry $toAirport');
+      }
+
+      // ✅ TripProvider에 저장 + 현재 Trip으로 선택
+      tripProvider.addTrip(newTrip);
+
+      if (mounted) {
+        Navigator.of(context, rootNavigator: true).pop(); // 로딩 닫기
+        context.go('/luggage');
+      }
+    } catch (e) {
+      Navigator.of(context, rootNavigator: true).pop(); // 로딩 닫기
+      _showError('여행 정보를 불러오지 못했어요.\n${e.toString()}');
+    }
   }
 
   @override
@@ -169,6 +296,16 @@ class _InitialTripScreenState extends State<InitialTripScreen> {
                 style: theme.textTheme.bodyMedium,
               ),
               const SizedBox(height: 24),
+
+              // 🔹 여행 이름 입력
+              TextFormField(
+                controller: _tripTitleController,
+                decoration: const InputDecoration(
+                  labelText: '여행 이름 (예: 오사카 3박 4일)',
+                  hintText: '입력하지 않으면 편명을 기반으로 자동 생성돼요.',
+                ),
+              ),
+              const SizedBox(height: 20),
 
               // 입력 방식 토글
               ToggleButtons(
@@ -255,7 +392,7 @@ class _InitialTripScreenState extends State<InitialTripScreen> {
         ),
         const SizedBox(height: 16),
         const Text(
-          '※ 편명 기준으로 나중에 항공 규정·경로 정보를 자동으로 가져올 수 있어요.',
+          '※ 편명 기준으로 항공 규정·경로 정보를 자동으로 가져올 수 있어요.',
           style: TextStyle(fontSize: 12, color: Colors.grey),
         ),
       ],
