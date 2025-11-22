@@ -1,3 +1,4 @@
+//lib/widgets/add_bag_dialog.dart
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/packing_provider.dart';
