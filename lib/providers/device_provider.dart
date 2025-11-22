@@ -9,10 +9,12 @@ class DeviceProvider with ChangeNotifier {
 
   DeviceProvider({required this.api});
 
+  String? _deviceUuid;          // ✅ UUID 보관
   String? _deviceToken;
   bool _isRegistering = false;
   String? _error;
 
+  String? get deviceUuid => _deviceUuid;
   String? get deviceToken => _deviceToken;
   bool get isRegistering => _isRegistering;
   String? get error => _error;
@@ -26,6 +28,10 @@ class DeviceProvider with ChangeNotifier {
     required String timezone,
     required String deviceUuid,
   }) async {
+    // ✅ uuid는 항상 저장해두자 (헤더에 써야 해서)
+    _deviceUuid ??= deviceUuid;
+
+    // 이미 토큰이 있거나 등록 중이면 다시 호출하지 않음
     if (_deviceToken != null || _isRegistering) {
       return;
     }
