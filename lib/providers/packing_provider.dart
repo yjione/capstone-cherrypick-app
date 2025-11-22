@@ -1,3 +1,4 @@
+//lib/providers/packing_provider.dart
 import 'package:flutter/material.dart';
 import '../models/packing_item.dart' as item;
 import '../models/bag.dart' as bag;

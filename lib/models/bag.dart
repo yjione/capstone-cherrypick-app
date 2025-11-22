@@ -1,3 +1,4 @@
+//lib/models/bag.dart
 import 'packing_item.dart';
 
 class Bag {

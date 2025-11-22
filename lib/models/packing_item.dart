@@ -1,4 +1,4 @@
-
+//lib/models/packing_item.dart
 class PackingItem {
   final String id;
   final String name;
