@@ -1,135 +1,82 @@
-//lib/providers/packing_provider.dart
+// lib/providers/packing_provider.dart
 import 'package:flutter/material.dart';
+
 import '../models/packing_item.dart' as item;
 import '../models/bag.dart' as bag;
-
-// Remove duplicate class definitions and use models instead
-// PackingItem class is now imported from models/packing_item.dart
-
-// Bag class is now imported from models/bag.dart
+import '../service/bag_api.dart';
 
 class PackingProvider extends ChangeNotifier {
-  final List<bag.Bag> _bags = [
-    bag.Bag(
-      id: "carry-on",
-      name: "기내용 캐리어",
-      type: "carry-on",
-      color: "blue",
-      items: [
-        item.PackingItem(
-          id: "1",
-          name: "여권",
-          category: "서류",
-          packed: true,
-          bagId: "carry-on",
-          location: "앞주머니",
-        ),
-        item.PackingItem(
-          id: "2",
-          name: "충전기",
-          category: "전자기기",
-          packed: true,
-          bagId: "carry-on",
-          location: "메인칸",
-        ),
-        item.PackingItem(
-          id: "3",
-          name: "화장품",
-          category: "세면용품",
-          packed: false,
-          bagId: "carry-on",
-          location: "지퍼백",
-        ),
-        item.PackingItem(
-          id: "4",
-          name: "약품",
-          category: "의료용품",
-          packed: true,
-          bagId: "carry-on",
-          location: "앞주머니",
-        ),
-      ],
-    ),
-    bag.Bag(
-      id: "checked",
-      name: "위탁용 캐리어",
-      type: "checked",
-      color: "green",
-      items: [
-        item.PackingItem(
-          id: "5",
-          name: "옷가지",
-          category: "의류",
-          packed: true,
-          bagId: "checked",
-          location: "메인칸",
-        ),
-        item.PackingItem(
-          id: "6",
-          name: "신발",
-          category: "신발",
-          packed: true,
-          bagId: "checked",
-          location: "신발칸",
-        ),
-        item.PackingItem(
-          id: "7",
-          name: "헤어드라이어",
-          category: "전자기기",
-          packed: false,
-          bagId: "checked",
-          location: "메인칸",
-        ),
-        item.PackingItem(
-          id: "8",
-          name: "선물",
-          category: "기타",
-          packed: false,
-          bagId: "checked",
-          location: "메인칸",
-        ),
-      ],
-    ),
-    bag.Bag(
-      id: "backpack",
-      name: "백팩",
-      type: "personal",
-      color: "purple",
-      items: [
-        item.PackingItem(
-          id: "9",
-          name: "노트북",
-          category: "전자기기",
-          packed: true,
-          bagId: "backpack",
-          location: "노트북칸",
-        ),
-        item.PackingItem(
-          id: "10",
-          name: "책",
-          category: "도서",
-          packed: false,
-          bagId: "backpack",
-          location: "메인칸",
-        ),
-        item.PackingItem(
-          id: "11",
-          name: "간식",
-          category: "음식",
-          packed: true,
-          bagId: "backpack",
-          location: "앞주머니",
-        ),
-      ],
-    ),
-  ];
+  final List<bag.Bag> _bags = [];
+  final BagApiService _bagApi = BagApiService();
 
-  String _selectedBag = "carry-on";
+  String _selectedBag = "";
   String _searchQuery = "";
+
+  bool _isLoading = false;
+  bool get isLoading => _isLoading;
 
   List<bag.Bag> get bags => _bags;
   String get selectedBag => _selectedBag;
   String get searchQuery => _searchQuery;
+
+  /// ✅ 서버에서 가방 + 아이템 목록 한 번에 불러오기
+  Future<void> loadBagsFromServer({
+    required int tripId,
+    required String deviceUuid,
+    required String deviceToken,
+  }) async {
+    _isLoading = true;
+    notifyListeners();
+
+    try {
+      final serverBags = await _bagApi.listBagsWithItems(
+        deviceUuid: deviceUuid,
+        deviceToken: deviceToken,
+        tripId: tripId,
+      );
+
+      _bags
+        ..clear()
+        ..addAll(serverBags);
+
+      // 선택된 가방 없으면 첫 번째를 기본 선택
+      if (_bags.isNotEmpty) {
+        _selectedBag = _bags.first.id;
+      }
+    } catch (e) {
+      debugPrint('loadBagsFromServer error: $e');
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  /// ✅ 서버에 가방 생성 + 로컬 리스트에 추가
+  Future<void> createBagOnServer({
+    required int tripId,
+    required String deviceUuid,
+    required String deviceToken,
+    required String name,
+    required String bagType, // 'carry_on' | 'checked' | 'custom'
+  }) async {
+    try {
+      final newBag = await _bagApi.createBag(
+        deviceUuid: deviceUuid,
+        deviceToken: deviceToken,
+        tripId: tripId,
+        name: name,
+        bagType: bagType,
+      );
+      _bags.add(newBag);
+
+      // 새로 추가한 가방 선택
+      _selectedBag = newBag.id;
+      notifyListeners();
+    } catch (e) {
+      debugPrint('createBagOnServer error: $e');
+      rethrow;
+    }
+  }
 
   void setSelectedBag(String bagId) {
     _selectedBag = bagId;
@@ -141,15 +88,17 @@ class PackingProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// ⏳ 지금은 로컬 상태만 바꾸고, 나중에 PATCH /v1/bag-items/{item_id} 붙이면 됨
   void toggleItemPacked(String bagId, String itemId) {
-    final bagIndex = _bags.indexWhere((bag) => bag.id == bagId);
+    final bagIndex = _bags.indexWhere((b) => b.id == bagId);
     if (bagIndex != -1) {
-      final itemIndex = _bags[bagIndex].items.indexWhere((item) => item.id == itemId);
+      final itemIndex =
+      _bags[bagIndex].items.indexWhere((i) => i.id == itemId);
       if (itemIndex != -1) {
-        final item = _bags[bagIndex].items[itemIndex];
-        final updatedItem = item.copyWith(packed: !item.packed);
+        final oldItem = _bags[bagIndex].items[itemIndex];
+        final updatedItem = oldItem.copyWith(packed: !oldItem.packed);
         _bags[bagIndex] = _bags[bagIndex].copyWith(
-          items: List.from(_bags[bagIndex].items)
+          items: List<item.PackingItem>.from(_bags[bagIndex].items)
             ..[itemIndex] = updatedItem,
         );
         notifyListeners();
@@ -157,47 +106,56 @@ class PackingProvider extends ChangeNotifier {
     }
   }
 
-  void addItem(item.PackingItem item) {
-    final bagIndex = _bags.indexWhere((bag) => bag.id == item.bagId);
+  /// (지금은 로컬 전용) 아이템 추가
+  void addItem(item.PackingItem newItem) {
+    final bagIndex = _bags.indexWhere((b) => b.id == newItem.bagId);
     if (bagIndex != -1) {
       _bags[bagIndex] = _bags[bagIndex].copyWith(
-        items: List.from(_bags[bagIndex].items)..add(item),
+        items: List<item.PackingItem>.from(_bags[bagIndex].items)
+          ..add(newItem),
       );
       notifyListeners();
     }
   }
 
+  /// (지금은 로컬 전용) 아이템 삭제
   void removeItem(String bagId, String itemId) {
-    final bagIndex = _bags.indexWhere((bag) => bag.id == bagId);
+    final bagIndex = _bags.indexWhere((b) => b.id == bagId);
     if (bagIndex != -1) {
       _bags[bagIndex] = _bags[bagIndex].copyWith(
-        items: _bags[bagIndex].items.where((item) => item.id != itemId).toList(),
+        items:
+        _bags[bagIndex].items.where((i) => i.id != itemId).toList(),
       );
       notifyListeners();
     }
   }
 
-  void addBag(bag.Bag bag) {
-    _bags.add(bag);
+  /// (fallback 용) 서버 안 붙고 로컬에서만 가방 추가할 때 사용
+  void addBag(bag.Bag newBag) {
+    _bags.add(newBag);
+    if (_selectedBag.isEmpty) {
+      _selectedBag = newBag.id;
+    }
     notifyListeners();
   }
 
   List<item.PackingItem> getFilteredItems(String bagId) {
-    final bag = _bags.firstWhere((bag) => bag.id == bagId);
-    if (_searchQuery.isEmpty) return bag.items;
-    
-    return bag.items.where((item) =>
-      item.name.toLowerCase().contains(_searchQuery.toLowerCase()) ||
-      item.category.toLowerCase().contains(_searchQuery.toLowerCase()) ||
-      (item.location?.toLowerCase().contains(_searchQuery.toLowerCase()) ?? false)
-    ).toList();
+    final b = _bags.firstWhere((b) => b.id == bagId);
+    if (_searchQuery.isEmpty) return b.items;
+
+    final q = _searchQuery.toLowerCase();
+    return b.items.where((i) {
+      return i.name.toLowerCase().contains(q) ||
+          i.category.toLowerCase().contains(q) ||
+          (i.location?.toLowerCase().contains(q) ?? false);
+    }).toList();
   }
 
   int getPackingProgress(String bagId) {
-    final bag = _bags.firstWhere((bag) => bag.id == bagId);
-    if (bag.items.isEmpty) return 0;
-    
-    final packedItems = bag.items.where((item) => item.packed).length;
-    return ((packedItems / bag.items.length) * 100).round();
+    final b = _bags.firstWhere((b) => b.id == bagId);
+    if (b.items.isEmpty) return 0;
+
+    final packedItems = b.items.where((i) => i.packed).length;
+    return ((packedItems / b.items.length) * 100).round();
   }
 }

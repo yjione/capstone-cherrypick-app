@@ -10,11 +10,13 @@ class TripProvider extends ChangeNotifier {
   String? _currentTripId;
 
   bool _isLoading = false;
+  bool _hasLoadedOnce = false;          // ⭐ 서버에서 한 번이라도 불러왔는지
   String? _error;
 
   List<Trip> get trips => _trips;
   String? get currentTripId => _currentTripId;
   bool get isLoading => _isLoading;
+  bool get hasLoadedOnce => _hasLoadedOnce;   // ⭐ getter
   String? get error => _error;
 
   Trip? get currentTrip {
@@ -79,6 +81,7 @@ class TripProvider extends ChangeNotifier {
       _error = e.toString();
     } finally {
       _isLoading = false;
+      _hasLoadedOnce = true;     // ⭐ 서버 호출은 한 번 끝났다!
       notifyListeners();
     }
   }

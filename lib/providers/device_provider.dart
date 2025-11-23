@@ -1,5 +1,7 @@
 // lib/providers/device_provider.dart
+import 'dart:convert';
 import 'package:flutter/foundation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/device_register.dart';
 import '../service/device_api.dart';
@@ -9,7 +11,7 @@ class DeviceProvider with ChangeNotifier {
 
   DeviceProvider({required this.api});
 
-  String? _deviceUuid;          // ✅ UUID 보관
+  String? _deviceUuid;
   String? _deviceToken;
   bool _isRegistering = false;
   String? _error;
@@ -19,7 +21,26 @@ class DeviceProvider with ChangeNotifier {
   bool get isRegistering => _isRegistering;
   String? get error => _error;
 
-  // 앱 시작 시 한 번만 호출해두면 됨
+  /// 앱 시작할 때 저장된 uuid/token을 불러오기
+  Future<void> loadFromStorage() async {
+    final prefs = await SharedPreferences.getInstance();
+    _deviceUuid = prefs.getString('deviceUuid');
+    _deviceToken = prefs.getString('deviceToken');
+    notifyListeners();
+  }
+
+  /// uuid/token 저장
+  Future<void> _saveToStorage() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (_deviceUuid != null) {
+      await prefs.setString('deviceUuid', _deviceUuid!);
+    }
+    if (_deviceToken != null) {
+      await prefs.setString('deviceToken', _deviceToken!);
+    }
+  }
+
+  /// 앱 설치 이후 최초 1회만 register 호출됨
   Future<void> registerIfNeeded({
     required String appVersion,
     required String os,
@@ -28,13 +49,18 @@ class DeviceProvider with ChangeNotifier {
     required String timezone,
     required String deviceUuid,
   }) async {
-    // ✅ uuid는 항상 저장해두자 (헤더에 써야 해서)
+    // 저장된 uuid/token 로드
+    await loadFromStorage();
+
+    // uuid는 항상 저장해두자 (헤더에 필요)
     _deviceUuid ??= deviceUuid;
 
-    // 이미 토큰이 있거나 등록 중이면 다시 호출하지 않음
-    if (_deviceToken != null || _isRegistering) {
+    // 이미 등록되어 있다면 호출 종료
+    if (_deviceToken != null) {
       return;
     }
+
+    if (_isRegistering) return;
 
     _isRegistering = true;
     _error = null;
@@ -47,11 +73,14 @@ class DeviceProvider with ChangeNotifier {
         model: model,
         locale: locale,
         timezone: timezone,
-        deviceUuid: deviceUuid,
+        deviceUuid: _deviceUuid!,
       );
 
       final res = await api.registerDevice(req);
       _deviceToken = res.deviceToken;
+
+      // 로컬 저장
+      await _saveToStorage();
     } catch (e) {
       _error = e.toString();
     } finally {
