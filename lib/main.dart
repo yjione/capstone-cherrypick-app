@@ -1,32 +1,40 @@
+// lib/main.dart
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
 
 import 'providers/trip_provider.dart';
 import 'providers/packing_provider.dart';
-
 import 'providers/preview_provider.dart';
+import 'providers/device_provider.dart';
+
 import 'service/preview_api.dart';
+import 'service/device_api.dart';
 
 import 'screens/luggage_screen.dart';
 import 'screens/scan_screen.dart';
 import 'screens/checklist_screen.dart';
 import 'screens/recommendations_screen.dart';
-import 'theme/app_theme.dart';
-
-import 'models/item_preview_sample.dart';
 import 'screens/item_preview_screen.dart';
 import 'screens/initial_trip_screen.dart';
 
-import 'service/device_api.dart';
-import 'providers/device_provider.dart';
+import 'theme/app_theme.dart';
+import 'models/item_preview_sample.dart';
 
-void main() {
-  runApp(const CherryPickApp());
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  // 🔹 DeviceProvider를 먼저 만들어서 저장된 uuid/token 로딩
+  final deviceProvider = DeviceProvider(api: DeviceApiService());
+  await deviceProvider.loadFromStorage();
+
+  runApp(CherryPickApp(deviceProvider: deviceProvider));
 }
 
 class CherryPickApp extends StatelessWidget {
-  const CherryPickApp({super.key});
+  final DeviceProvider deviceProvider;
+
+  const CherryPickApp({super.key, required this.deviceProvider});
 
   @override
   Widget build(BuildContext context) {
@@ -43,8 +51,9 @@ class CherryPickApp extends StatelessWidget {
             api: PreviewApiService(baseUrl: previewBaseUrl),
           ),
         ),
-        ChangeNotifierProvider(
-          create: (_) => DeviceProvider(api: DeviceApiService()),
+        // ✅ 이미 초기화된 DeviceProvider 주입
+        ChangeNotifierProvider<DeviceProvider>.value(
+          value: deviceProvider,
         ),
       ],
       child: MaterialApp.router(
@@ -60,16 +69,13 @@ class CherryPickApp extends StatelessWidget {
 }
 
 final GoRouter _router = GoRouter(
-  // 🔹 앱 처음 켰을 때 보이는 화면
-  initialLocation: '/initial-trip',
+  // 초기 진입 화면
+  initialLocation: '/luggage',
   routes: [
-    // 🔹 첫 여행 입력 화면
     GoRoute(
       path: '/initial-trip',
       builder: (context, state) => const InitialTripScreen(),
     ),
-
-    // ✅ 미리보기 디자인 디버그용 (샘플 데이터)
     GoRoute(
       path: '/preview-debug',
       builder: (context, state) => ItemPreviewScreen(
