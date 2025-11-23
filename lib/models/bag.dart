@@ -1,10 +1,11 @@
-//lib/models/bag.dart
+// lib/models/bag.dart
 import 'packing_item.dart';
 
 class Bag {
-  final String id;
+  final String id;            // 서버 bag_id (string 으로 변환해서 사용)
   final String name;
-  final String type; // 'carry-on', 'checked', 'personal'
+  /// 서버 기준: 'carry_on', 'checked', 'custom'
+  final String type;
   final String color;
   final List<PackingItem> items;
 
@@ -44,13 +45,15 @@ class Bag {
 
   factory Bag.fromJson(Map<String, dynamic> json) {
     return Bag(
-      id: json['id'],
-      name: json['name'],
-      type: json['type'],
-      color: json['color'],
+      id: json['id'] as String,
+      name: json['name'] as String,
+      type: json['type'] as String,
+      color: json['color'] as String,
       items: (json['items'] as List<dynamic>?)
-          ?.map((item) => PackingItem.fromJson(item))
-          .toList() ?? [],
+          ?.map((item) =>
+          PackingItem.fromJson(item as Map<String, dynamic>))
+          .toList() ??
+          [],
     );
   }
 }

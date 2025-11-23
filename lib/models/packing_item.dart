@@ -1,13 +1,14 @@
-//lib/models/packing_item.dart
+// lib/models/packing_item.dart
+
 class PackingItem {
-  final String id;
-  final String name;
-  final String category;
-  final bool packed;
-  final String bagId;
+  final String id;       // 서버 item_id (string 으로 변환)
+  final String name;     // 서버 title
+  final String category; // 서버에는 없어서 기본값 '기타' 등으로 세팅
+  final bool packed;     // 서버 status == 'done'/'packed' 일 때 true
+  final String bagId;    // 서버 bag_id
   final String? location;
   final String? weight;
-  final String? notes;
+  final String? notes;   // 서버 note
 
   PackingItem({
     required this.id,
@@ -57,68 +58,14 @@ class PackingItem {
 
   factory PackingItem.fromJson(Map<String, dynamic> json) {
     return PackingItem(
-      id: json['id'],
-      name: json['name'],
-      category: json['category'],
-      packed: json['packed'],
-      bagId: json['bagId'],
-      location: json['location'],
-      weight: json['weight'],
-      notes: json['notes'],
-    );
-  }
-}
-
-class Bag {
-  final String id;
-  final String name;
-  final String type;
-  final String color;
-  final List<PackingItem> items;
-
-  Bag({
-    required this.id,
-    required this.name,
-    required this.type,
-    required this.color,
-    required this.items,
-  });
-
-  Bag copyWith({
-    String? id,
-    String? name,
-    String? type,
-    String? color,
-    List<PackingItem>? items,
-  }) {
-    return Bag(
-      id: id ?? this.id,
-      name: name ?? this.name,
-      type: type ?? this.type,
-      color: color ?? this.color,
-      items: items ?? this.items,
-    );
-  }
-
-  Map<String, dynamic> toJson() {
-    return {
-      'id': id,
-      'name': name,
-      'type': type,
-      'color': color,
-      'items': items.map((item) => item.toJson()).toList(),
-    };
-  }
-
-  factory Bag.fromJson(Map<String, dynamic> json) {
-    return Bag(
-      id: json['id'],
-      name: json['name'],
-      type: json['type'],
-      color: json['color'],
-      items: (json['items'] as List)
-          .map((item) => PackingItem.fromJson(item))
-          .toList(),
+      id: json['id'] as String,
+      name: json['name'] as String,
+      category: json['category'] as String,
+      packed: json['packed'] as bool,
+      bagId: json['bagId'] as String,
+      location: json['location'] as String?,
+      weight: json['weight'] as String?,
+      notes: json['notes'] as String?,
     );
   }
 }
