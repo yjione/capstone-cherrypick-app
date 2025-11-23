@@ -129,6 +129,34 @@ class TripApiService {
     jsonDecode(resp.body) as Map<String, dynamic>;
     return TripListResponse.fromJson(json);
   }
+
+  /// ---------------- Delete Trip (DELETE /v1/trips/{trip_id}) ----------------
+  Future<void> deleteTrip({
+    required String deviceUuid,
+    required String deviceToken,
+    required int tripId,
+    bool purge = false, // true면 hard delete
+  }) async {
+    final uri = Uri.parse('$_baseUrl/v1/trips/$tripId').replace(
+      queryParameters: {
+        'purge': purge.toString(),
+      },
+    );
+
+    final resp = await http.delete(
+      uri,
+      headers: {
+        'Accept': 'application/json',
+        'X-Device-UUID': deviceUuid,
+        'X-Device-Token': deviceToken,
+        'ngrok-skip-browser-warning': 'true',
+      },
+    );
+
+    if (resp.statusCode != 200 && resp.statusCode != 204) {
+      throw Exception('Delete trip failed: ${resp.statusCode} ${resp.body}');
+    }
+  }
 }
 
 /// ================== 모델들 ==================
