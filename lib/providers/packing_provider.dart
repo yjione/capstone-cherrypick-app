@@ -42,6 +42,8 @@ class PackingProvider extends ChangeNotifier {
       // 선택된 가방 없으면 첫 번째를 기본 선택
       if (_bags.isNotEmpty) {
         _selectedBag = _bags.first.id;
+      } else {
+        _selectedBag = "";
       }
     } catch (e) {
       debugPrint('loadBagsFromServer error: $e');
@@ -74,6 +76,61 @@ class PackingProvider extends ChangeNotifier {
       notifyListeners();
     } catch (e) {
       debugPrint('createBagOnServer error: $e');
+      rethrow;
+    }
+  }
+
+  /// ✅ 서버에서 가방 이름 수정 + 로컬 이름도 업데이트
+  Future<void> renameBagOnServer({
+    required String deviceUuid,
+    required String deviceToken,
+    required String bagId,
+    required String newName,
+  }) async {
+    try {
+      final updated = await _bagApi.updateBag(
+        deviceUuid: deviceUuid,
+        deviceToken: deviceToken,
+        bagId: int.parse(bagId),
+        name: newName,
+      );
+
+      final index = _bags.indexWhere((b) => b.id == bagId);
+      if (index != -1) {
+        _bags[index] = _bags[index].copyWith(name: updated.name);
+      }
+
+      notifyListeners();
+    } catch (e) {
+      debugPrint('renameBagOnServer error: $e');
+      rethrow;
+    }
+  }
+
+  /// ✅ 서버에서 가방 삭제 + 로컬 목록에서도 제거
+  Future<void> deleteBagOnServer({
+    required String deviceUuid,
+    required String deviceToken,
+    required String bagId,
+  }) async {
+    try {
+      await _bagApi.deleteBag(
+        deviceUuid: deviceUuid,
+        deviceToken: deviceToken,
+        bagId: int.parse(bagId),
+      );
+
+      // 로컬 리스트에서 제거
+      _bags.removeWhere((b) => b.id == bagId);
+
+      // 선택된 가방이 삭제됐으면 다른 가방 선택 or 비우기
+      if (_selectedBag == bagId) {
+        _selectedBag = _bags.isNotEmpty ? _bags.first.id : "";
+      }
+
+      notifyListeners();
+    } catch (e) {
+      debugPrint('deleteBagOnServer error: $e');
       rethrow;
     }
   }
@@ -123,8 +180,7 @@ class PackingProvider extends ChangeNotifier {
     final bagIndex = _bags.indexWhere((b) => b.id == bagId);
     if (bagIndex != -1) {
       _bags[bagIndex] = _bags[bagIndex].copyWith(
-        items:
-        _bags[bagIndex].items.where((i) => i.id != itemId).toList(),
+        items: _bags[bagIndex].items.where((i) => i.id != itemId).toList(),
       );
       notifyListeners();
     }
