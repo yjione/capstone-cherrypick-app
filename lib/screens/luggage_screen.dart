@@ -25,15 +25,31 @@ class _LuggageScreenState extends State<LuggageScreen> {
   void initState() {
     super.initState();
 
-    /// 화면 진입 시 한 번 서버에서 여행 목록 가져오기
+    /// 화면 진입 시 한 번 서버에서 여행 목록 & 가방 목록 가져오기
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       final device = context.read<DeviceProvider>();
       final tripProvider = context.read<TripProvider>();
+      final packingProvider = context.read<PackingProvider>();
 
-      if (device.deviceUuid != null && device.deviceToken != null) {
-        await tripProvider.fetchTripsFromServer(
+      // ⭐ 0) 아직 기기 등록이 안 되어 있으면 첫 여행 설정 화면으로 보냄
+      if (device.deviceUuid == null || device.deviceToken == null) {
+        context.go('/initial-trip');
+        return;
+      }
+
+      // 1) 여행 목록 먼저 가져오기
+      await tripProvider.fetchTripsFromServer(
+        deviceUuid: device.deviceUuid!,
+        deviceToken: device.deviceToken!,
+      );
+
+      // 2) 현재 여행 기준으로 가방/아이템 로딩
+      final currentTrip = tripProvider.currentTrip;
+      if (currentTrip != null) {
+        await packingProvider.loadBagsFromServer(
           deviceUuid: device.deviceUuid!,
           deviceToken: device.deviceToken!,
+          tripId: int.parse(currentTrip.id),
         );
       }
     });
@@ -54,6 +70,7 @@ class _LuggageScreenState extends State<LuggageScreen> {
     final List<Trip> trips = tripProvider.trips;
     final currentTrip = tripProvider.currentTrip;
     final isLoadingTrips = tripProvider.isLoading;
+    final hasLoadedTrips = tripProvider.hasLoadedOnce;   // ⭐
 
     final scheme = Theme.of(context).colorScheme;
     final textColor = scheme.onSurface;
@@ -73,35 +90,15 @@ class _LuggageScreenState extends State<LuggageScreen> {
       );
     }
 
-    /// 1) 로딩 끝났는데 등록된 여행이 하나도 없음 → 안내 화면
-    if (trips.isEmpty) {
-      return Scaffold(
-        backgroundColor: scheme.surface,
-        appBar: AppBar(
-          title: const Text('cherry pick'),
-          centerTitle: true,
-        ),
-        body: Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Text(
-                '등록된 여행이 없어요.',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-              ),
-              const SizedBox(height: 8),
-              ElevatedButton(
-                onPressed: () => context.go('/initial-trip'),
-                child: const Text('첫 여행 설정하러 가기'),
-              ),
-            ],
-          ),
-        ),
-        bottomNavigationBar: const BottomNavigation(currentIndex: 0),
-      );
+    /// 1) 서버에서 한 번이라도 불러봤고, 등록된 여행이 하나도 없음 → initial-trip 으로 보내기
+    if (hasLoadedTrips && trips.isEmpty) {             // ⭐ 조건 수정
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        context.go('/initial-trip');
+      });
+      return const SizedBox.shrink();
     }
 
-    /// 2) 여행은 있는데 currentTrip이 null 인 경우 → 첫 번째 여행을 선택
+    /// 2) 여행은 있는데 currentTrip이 null 인 경우 → 첫 번째 여행 선택
     if (currentTrip == null) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (tripProvider.trips.isNotEmpty) {
@@ -111,6 +108,7 @@ class _LuggageScreenState extends State<LuggageScreen> {
       return const SizedBox.shrink();
     }
 
+    // ---------- 아래는 기존 코드 그대로 ----------
     PreferredSizeWidget _topBar() {
       final scheme = Theme.of(context).colorScheme;
       final textColor = scheme.onSurface;
@@ -223,6 +221,7 @@ class _LuggageScreenState extends State<LuggageScreen> {
     }
 
     if (bagCount == 0) {
+      // 가방이 아직 없을 때: 상단만 두고 PackingManager에서 빈 상태 표시
       return Scaffold(
         backgroundColor: scheme.surface,
         appBar: _topBar(),
@@ -243,7 +242,7 @@ class _LuggageScreenState extends State<LuggageScreen> {
     );
   }
 
-  // 🔻 여행 선택/추가/삭제 바텀시트
+// 🔻 여행 선택/추가/삭제 바텀시트
   void _showTripSelector(BuildContext context) {
     showModalBottomSheet(
       context: context,
@@ -310,9 +309,23 @@ class _LuggageScreenState extends State<LuggageScreen> {
                         ),
                       ],
                     ),
-                    onTap: () {
+                    onTap: () async {
+                      final device = context.read<DeviceProvider>();
+                      final packingProvider =
+                      context.read<PackingProvider>();
+
                       tripProvider.setCurrentTrip(trip.id);
                       Navigator.pop(context);
+
+                      // 여행 변경 시 새 여행의 가방/아이템 다시 로딩
+                      if (device.deviceUuid != null &&
+                          device.deviceToken != null) {
+                        await packingProvider.loadBagsFromServer(
+                          deviceUuid: device.deviceUuid!,
+                          deviceToken: device.deviceToken!,
+                          tripId: int.parse(trip.id),
+                        );
+                      }
                     },
                   );
                 },
@@ -326,7 +339,7 @@ class _LuggageScreenState extends State<LuggageScreen> {
     );
   }
 
-  // 🔻 여행 삭제 확인 다이얼로그
+  // 🔻 여행 삭제 확인 다이얼로그 (서버 연동은 아직 없이 로컬만)
   Future<void> _confirmDeleteTrip(
       BuildContext context,
       Trip trip,

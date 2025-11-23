@@ -1,6 +1,7 @@
-//lib/widgets/item_list.dart
+// lib/widgets/item_list.dart
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+
 import '../providers/packing_provider.dart';
 import '../models/packing_item.dart' as model;
 import '../widgets/add_item_dialog.dart';
@@ -34,16 +35,21 @@ class ItemList extends StatelessWidget {
                     ),
                     const SizedBox(width: 8),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 4),
                       decoration: BoxDecoration(
-                        color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                        color: Theme.of(context)
+                            .colorScheme
+                            .surfaceContainerHighest,
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Text(
                         '${bag.items.length}개 아이템',
                         style: TextStyle(
                           fontSize: 12,
-                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                          color: Theme.of(context)
+                              .colorScheme
+                              .onSurfaceVariant,
                         ),
                       ),
                     ),
@@ -54,7 +60,8 @@ class ItemList extends StatelessWidget {
                   icon: const Icon(Icons.add, size: 16),
                   label: const Text('아이템 추가'),
                   style: ElevatedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 12, vertical: 8),
                   ),
                 ),
               ],
@@ -63,7 +70,8 @@ class ItemList extends StatelessWidget {
             Expanded(
               child: filteredItems.isEmpty
                   ? _EmptyState(
-                hasSearchQuery: packingProvider.searchQuery.isNotEmpty,
+                hasSearchQuery:
+                packingProvider.searchQuery.isNotEmpty,
                 onAddItem: () => _showAddItemDialog(context, bagId),
               )
                   : ListView.builder(
@@ -178,24 +186,33 @@ class ItemCard extends StatelessWidget {
                           style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.w500,
-                            decoration: item.packed ? TextDecoration.lineThrough : null,
+                            decoration: item.packed
+                                ? TextDecoration.lineThrough
+                                : null,
                             color: item.packed
-                                ? Theme.of(context).colorScheme.onSurfaceVariant
+                                ? Theme.of(context)
+                                .colorScheme
+                                .onSurfaceVariant
                                 : null,
                           ),
                         ),
                       ),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 2),
                         decoration: BoxDecoration(
-                          color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                          color: Theme.of(context)
+                              .colorScheme
+                              .surfaceContainerHighest,
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: Text(
                           item.category,
                           style: TextStyle(
                             fontSize: 12,
-                            color: Theme.of(context).colorScheme.onSurfaceVariant,
+                            color: Theme.of(context)
+                                .colorScheme
+                                .onSurfaceVariant,
                           ),
                         ),
                       ),
@@ -208,14 +225,18 @@ class ItemCard extends StatelessWidget {
                         Icon(
                           Icons.location_on,
                           size: 12,
-                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                          color: Theme.of(context)
+                              .colorScheme
+                              .onSurfaceVariant,
                         ),
                         const SizedBox(width: 4),
                         Text(
                           item.location!,
                           style: TextStyle(
                             fontSize: 12,
-                            color: Theme.of(context).colorScheme.onSurfaceVariant,
+                            color: Theme.of(context)
+                                .colorScheme
+                                .onSurfaceVariant,
                           ),
                         ),
                       ],
