@@ -182,6 +182,83 @@ class BagApiService {
     );
   }
 
+  /// PATCH /v1/bags/{bag_id}  (이름/타입/정렬 순서 등 수정)
+  Future<Bag> updateBag({
+    required String deviceUuid,
+    required String deviceToken,
+    required int bagId,
+    String? name,
+    String? bagType, // 'carry_on' | 'checked' | 'custom'
+    int? sortOrder,
+  }) async {
+    final url = Uri.parse('$_baseUrl/v1/bags/$bagId');
+
+    final body = <String, dynamic>{};
+    if (name != null) body['name'] = name;
+    if (bagType != null) body['bag_type'] = bagType;
+    if (sortOrder != null) body['sort_order'] = sortOrder;
+
+    if (body.isEmpty) {
+      throw Exception('Nothing to update');
+    }
+
+    final resp = await http.patch(
+      url,
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        'X-Device-UUID': deviceUuid,
+        'X-Device-Token': deviceToken,
+        'ngrok-skip-browser-warning': 'true',
+      },
+      body: jsonEncode(body),
+    );
+
+    final contentType = resp.headers['content-type'] ?? '';
+    if (!contentType.startsWith('application/json')) {
+      throw Exception('Unexpected response: ${resp.body}');
+    }
+    if (resp.statusCode != 200) {
+      throw Exception('Update bag failed: ${resp.statusCode} ${resp.body}');
+    }
+
+    final Map<String, dynamic> m =
+    jsonDecode(resp.body) as Map<String, dynamic>;
+    final bagTypeResp = (m['bag_type'] as String? ?? bagType ?? 'custom');
+
+    return Bag(
+      id: (m['bag_id'] ?? '').toString(),
+      name: m['name'] as String? ?? name ?? '',
+      type: bagTypeResp,
+      color: _colorForBagType(bagTypeResp),
+      items: const [], // 아이템은 별도 호출로 관리
+    );
+  }
+
+  /// DELETE /v1/bags/{bag_id}
+  Future<void> deleteBag({
+    required String deviceUuid,
+    required String deviceToken,
+    required int bagId,
+  }) async {
+    final url = Uri.parse('$_baseUrl/v1/bags/$bagId');
+
+    final resp = await http.delete(
+      url,
+      headers: {
+        'Accept': 'application/json',
+        'X-Device-UUID': deviceUuid,
+        'X-Device-Token': deviceToken,
+        'ngrok-skip-browser-warning': 'true',
+      },
+    );
+
+    // 204 No Content (또는 혹시 200 OK) 정도를 성공으로 허용
+    if (resp.statusCode != 204 && resp.statusCode != 200) {
+      throw Exception('Delete bag failed: ${resp.statusCode} ${resp.body}');
+    }
+  }
+
   String _colorForBagType(String type) {
     switch (type) {
       case 'carry_on':
