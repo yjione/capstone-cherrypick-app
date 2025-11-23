@@ -1,20 +1,24 @@
-// This is a basic Flutter widget test.
-//
-// To perform an interaction with a widget in your test, use the WidgetTester
-// utility in the flutter_test package. For example, you can send tap and scroll
-// gestures. You can also use WidgetTester to find child widgets in the widget
-// tree, read text, and verify that the values of widget properties are correct.
-
+// test/widget_test.dart
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:cherry_pick/main.dart';
+import 'package:cherry_pick/providers/device_provider.dart';
+import 'package:cherry_pick/service/device_api.dart';
 
 void main() {
   testWidgets('CherryPick app smoke test', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
-    await tester.pumpWidget(const CherryPickApp());
+    // 테스트용 DeviceProvider 생성 (실제 네트워크 호출은 안 써도 됨)
+    final deviceProvider = DeviceProvider(api: DeviceApiService());
 
-    // Verify that our app starts correctly
-    expect(find.text('Cherry Pick'), findsOneWidget);
+    // 앱 빌드
+    await tester.pumpWidget(
+      CherryPickApp(deviceProvider: deviceProvider),
+    );
+
+    // 라우터/프레임 안정화
+    await tester.pumpAndSettle();
+
+    // 초기 화면(AppBar)에 'cherry pick' 이 표시되는지 확인
+    expect(find.text('cherry pick'), findsOneWidget);
   });
 }

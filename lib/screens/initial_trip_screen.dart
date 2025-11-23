@@ -5,6 +5,8 @@ import 'package:provider/provider.dart';
 
 import '../models/trip.dart';
 import '../providers/trip_provider.dart';
+import '../providers/device_provider.dart';
+import '../service/trip_api.dart';
 
 class InitialTripScreen extends StatefulWidget {
   const InitialTripScreen({super.key});
@@ -19,6 +21,9 @@ class _InitialTripScreenState extends State<InitialTripScreen> {
 
   final _formKey = GlobalKey<FormState>();
 
+  // --- 여행 이름 ---
+  final _tripTitleController = TextEditingController();
+
   // --- 편명 입력용 (왕복) ---
   final _outboundFlightController = TextEditingController();
   final _returnFlightController = TextEditingController();
@@ -31,26 +36,14 @@ class _InitialTripScreenState extends State<InitialTripScreen> {
   String? _airline;
   String? _seatClass;
 
-  /// ✅ 국가 → 공항 목록 (RegulationChecker와 동일 구조)
+  /// 국가 → 공항 목록
   final Map<String, List<String>> _countryAirports = const {
-    '일본': [
-      '나리타(NRT)',
-      '하네다(HND)',
-      '간사이(KIX)',
-    ],
-    '미국': [
-      'LAX(로스앤젤레스)',
-      'JFK(뉴욕)',
-      'SFO(샌프란시스코)',
-    ],
-    '한국': [
-      '인천(ICN)',
-      '김포(GMP)',
-      '김해(PUS)',
-    ],
+    '일본': ['나리타(NRT)', '하네다(HND)', '간사이(KIX)'],
+    '미국': ['LAX(로스앤젤레스)', 'JFK(뉴욕)', 'SFO(샌프란시스코)'],
+    '한국': ['인천(ICN)', '김포(GMP)', '김해(PUS)'],
   };
 
-  /// ✅ 항공사 전체 목록 (국가와 무관)
+  /// 항공사 전체 목록
   final List<String> _allAirlines = const [
     '대한항공',
     '아시아나항공',
@@ -60,7 +53,7 @@ class _InitialTripScreenState extends State<InitialTripScreen> {
     '아메리칸항공',
   ];
 
-  /// ✅ 항공사 → 좌석 등급 (항공사에만 종속)
+  /// 항공사 → 좌석 등급
   final Map<String, List<String>> _airlineSeatClasses = const {
     '대한항공': ['이코노미', '프리미엄 이코노미', '비즈니스', '일등석'],
     '아시아나항공': ['이코노미', '비즈니스'],
@@ -70,30 +63,52 @@ class _InitialTripScreenState extends State<InitialTripScreen> {
     '아메리칸항공': ['이코노미', '비즈니스', '일등석'],
   };
 
-  // ----- Getter들 -----
   List<String> get _countries => _countryAirports.keys.toList();
-
-  List<String> _airportsFor(String? country) {
-    if (country == null) return [];
-    return _countryAirports[country] ?? [];
-  }
-
+  List<String> _airportsFor(String? country) =>
+      country == null ? [] : _countryAirports[country] ?? [];
   List<String> get _fromAirports => _airportsFor(_fromCountry);
   List<String> get _toAirports => _airportsFor(_toCountry);
 
-  List<String> get _seatClassesForSelectedAirline {
-    if (_airline == null) return [];
-    return _airlineSeatClasses[_airline!] ?? [];
+  List<String> get _seatClassesForSelectedAirline =>
+      _airline == null ? [] : _airlineSeatClasses[_airline!] ?? [];
+
+  final TripApiService _tripApi = TripApiService();
+
+  @override
+  void initState() {
+    super.initState();
+
+    // 앱 첫 진입 시 기기 등록 시도
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final deviceProvider = context.read<DeviceProvider>();
+
+      debugPrint('🔧 [InitialTripScreen] registerIfNeeded 호출');
+
+      deviceProvider.registerIfNeeded(
+        appVersion: '1.0.0',
+        os: 'android', // TODO: 실제 플랫폼에 맞게 수정
+        model: 'test-device',
+        locale: 'ko-KR',
+        timezone: '+09:00',
+        deviceUuid: 'dummy-device-1234', // TODO: 실제 UUID로 교체
+      );
+    });
   }
 
   @override
   void dispose() {
+    _tripTitleController.dispose();
     _outboundFlightController.dispose();
     _returnFlightController.dispose();
     super.dispose();
   }
 
-  // 오늘 날짜를 Trip.startDate에 넣기 위한 간단한 포맷터
+  void _showError(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message)),
+    );
+  }
+
   String _todayIso() {
     final now = DateTime.now();
     final mm = now.month.toString().padLeft(2, '0');
@@ -101,52 +116,172 @@ class _InitialTripScreenState extends State<InitialTripScreen> {
     return '${now.year}-$mm-$dd';
   }
 
-  void _submit() {
-    if (!_formKey.currentState!.validate()) return;
+  String _calcDuration(String startDate, String endDate) {
+    try {
+      final s = DateTime.parse(startDate);
+      final e = DateTime.parse(endDate);
+      final days = e.difference(s).inDays;
+      if (days <= 0) return '당일치기';
+      return '${days}박 ${days + 1}일';
+    } catch (_) {
+      return '';
+    }
+  }
 
-    final tripProvider = context.read<TripProvider>();
-    final newId = DateTime.now().millisecondsSinceEpoch.toString();
-    final today = _todayIso();
+  /// lookup-flight 결과로부터 leg 문자열 생성 (예: ICN-LAX)
+  String _buildLegString(FlightLookupResult flight) {
+    final dep = flight.departureAirportIata;
+    final arr = flight.arrivalAirportIata;
 
-    Trip newTrip;
-
-    if (_inputMode == 0) {
-      // ✅ 편명으로 받은 왕복 Trip
-      final go = _outboundFlightController.text.trim();
-      final back = _returnFlightController.text.trim();
-
-      newTrip = Trip(
-        id: newId,
-        name: '$go / $back 왕복 여행',
-        destination: '미정', // 목적지는 이후에 수정 가능
-        startDate: today,
-        duration: '왕복', // duration 필드 활용
-      );
-    } else {
-      // ✅ 국가 / 공항 / 항공사 / 좌석 등급으로 받은 왕복 Trip
-      final fromCountry = _fromCountry!;
-      final fromAirport = _fromAirport!;
-      final toCountry = _toCountry!;
-      final toAirport = _toAirport!;
-      final airline = _airline!;
-      final seatClass = _seatClass!;
-
-      newTrip = Trip(
-        id: newId,
-        name: '$toCountry 여행', // 예: "일본 여행"
-        destination: '$toCountry $toAirport', // 예: "일본 나리타(NRT)"
-        startDate: today,
-        duration: '왕복 · $airline · $seatClass',
-      );
-
-      debugPrint('왕복 경로: $fromCountry $fromAirport → $toCountry $toAirport');
+    if (dep.isNotEmpty && arr.isNotEmpty) {
+      return '$dep-$arr'; // 3 + 1 + 3 = 7글자
     }
 
-    // ✅ TripProvider에 저장 + 현재 Trip으로 선택
-    tripProvider.addTrip(newTrip);
+    if (flight.leg != null && flight.leg!.length >= 7) {
+      return flight.leg!;
+    }
 
-    // ✅ 첫 세팅이 끝났으니 짐 화면으로 이동
-    context.go('/luggage');
+    return 'UNKNOWN'; // 최소 7글자 확보용 fallback
+  }
+
+  Future<void> _submit() async {
+    if (!_formKey.currentState!.validate()) return;
+
+    debugPrint('▶️ [_submit] start, inputMode=$_inputMode');
+
+    final tripProvider = context.read<TripProvider>();
+    final deviceProvider = context.read<DeviceProvider>();
+
+    final deviceUuid = deviceProvider.deviceUuid;
+    final deviceToken = deviceProvider.deviceToken;
+
+    debugPrint(
+        '▶️ deviceUuid=$deviceUuid, deviceToken=${deviceToken != null ? 'exists' : 'null'}');
+
+    if ((_inputMode == 0) && (deviceUuid == null || deviceToken == null)) {
+      _showError('기기 등록 중입니다. 잠시 후 다시 시도해 주세요.');
+      debugPrint('⛔ device 정보 없음 → submit 중단');
+      return;
+    }
+
+    final titleInput = _tripTitleController.text.trim();
+
+    // 로딩 다이얼로그
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const Center(child: CircularProgressIndicator()),
+    );
+
+    try {
+      Trip newTrip;
+
+      if (_inputMode == 0) {
+        // 🔹 편명 기반 Trip 생성 (lookup-flight + create trip)
+
+        final goCode = _outboundFlightController.text.trim();
+        final backCode = _returnFlightController.text.trim();
+
+        debugPrint('✈️ lookup outbound flight: $goCode');
+        final goFlight = await _tripApi.lookupFlight(
+          deviceUuid: deviceUuid!,
+          deviceToken: deviceToken!,
+          flightCode: goCode,
+        );
+
+        debugPrint('✈️ lookup return flight: $backCode');
+        final backFlight = await _tripApi.lookupFlight(
+          deviceUuid: deviceUuid,
+          deviceToken: deviceToken,
+          flightCode: backCode,
+        );
+
+        final title =
+        titleInput.isEmpty ? '$goCode / $backCode 여행' : titleInput;
+
+        // 🔹 segments: 왕복 두 구간
+        final segments = <TripSegmentInput>[
+          TripSegmentInput(
+            leg: _buildLegString(goFlight), // 예: ICN-ATL
+            operating: goFlight.airlineIata, // 예: KE
+            cabinClass: 'economy',
+          ),
+          TripSegmentInput(
+            leg: _buildLegString(backFlight), // 예: LAX-ICN
+            operating: backFlight.airlineIata,
+            cabinClass: 'economy',
+          ),
+        ];
+
+        debugPrint(
+            '📤 createTrip 요청: title=$title, from=${goFlight.departureAirportIata}, to=${backFlight.arrivalAirportIata}');
+
+        // 3) 서버에 Trip 생성 (startDate, endDate → null)
+        final created = await _tripApi.createTrip(
+          deviceUuid: deviceUuid,
+          deviceToken: deviceToken,
+          title: title,
+          fromAirport: goFlight.departureAirportIata,
+          toAirport: backFlight.arrivalAirportIata,
+          startDate: null, // 날짜는 서버/추후 단계에서
+          endDate: null,
+          segments: segments,
+        );
+
+        debugPrint('✅ createTrip 성공: tripId=${created.tripId}');
+
+        // 4) 로컬 Trip 모델로 변환
+        final duration = _calcDuration(created.startDate, created.endDate);
+
+        newTrip = Trip(
+          id: created.tripId.toString(),
+          name: created.title,
+          destination: created.to ?? backFlight.arrivalAirportName,
+          startDate: created.startDate,
+          duration: duration,
+        );
+      } else {
+        // 🔹 기존 수동 입력 로직 (서버 연동은 나중에 추가해도 됨)
+        final newId = DateTime.now().millisecondsSinceEpoch.toString();
+        final today = _todayIso();
+
+        final fromCountry = _fromCountry!;
+        final fromAirport = _fromAirport!;
+        final toCountry = _toCountry!;
+        final toAirport = _toAirport!;
+        final airline = _airline!;
+        final seatClass = _seatClass!;
+
+        final title = titleInput.isEmpty ? '$toCountry 여행' : titleInput;
+
+        newTrip = Trip(
+          id: newId,
+          name: title,
+          destination: '$toCountry $toAirport',
+          startDate: today,
+          duration: '왕복 · $airline · $seatClass',
+        );
+
+        debugPrint(
+            '🧳 수동 입력 Trip 생성: $fromCountry $fromAirport → $toCountry $toAirport');
+      }
+
+      // ✅ TripProvider에 저장 + 현재 Trip으로 선택
+      tripProvider.addTrip(newTrip);
+      tripProvider.setCurrentTrip(newTrip.id);
+      debugPrint(
+          '✅ TripProvider 업데이트 완료: trips=${tripProvider.trips.length}, currentTripId=${tripProvider.currentTripId}');
+
+      if (mounted) {
+        Navigator.of(context, rootNavigator: true).pop(); // 로딩 닫기
+        debugPrint('➡️ /luggage 로 이동');
+        context.go('/luggage');
+      }
+    } catch (e, st) {
+      Navigator.of(context, rootNavigator: true).pop(); // 로딩 닫기
+      debugPrint('❌ [_submit] 에러: $e\n$st');
+      _showError('여행 정보를 불러오지 못했어요.\n${e.toString()}');
+    }
   }
 
   @override
@@ -175,7 +310,17 @@ class _InitialTripScreenState extends State<InitialTripScreen> {
               ),
               const SizedBox(height: 24),
 
-              // 🔹 입력 방식 토글 (편명 / 국가·공항 입력)
+              // 🔹 여행 이름 입력
+              TextFormField(
+                controller: _tripTitleController,
+                decoration: const InputDecoration(
+                  labelText: '여행 이름 (예: 오사카 3박 4일)',
+                  hintText: '입력하지 않으면 편명을 기반으로 자동 생성돼요.',
+                ),
+              ),
+              const SizedBox(height: 20),
+
+              // 입력 방식 토글
               ToggleButtons(
                 isSelected: [
                   _inputMode == 0,
@@ -196,9 +341,9 @@ class _InitialTripScreenState extends State<InitialTripScreen> {
                   ),
                 ],
               ),
+
               const SizedBox(height: 16),
 
-              // 🔹 입력 폼
               Expanded(
                 child: Form(
                   key: _formKey,
@@ -213,7 +358,6 @@ class _InitialTripScreenState extends State<InitialTripScreen> {
                 ),
               ),
 
-              // 🔹 완료 버튼
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
@@ -228,9 +372,8 @@ class _InitialTripScreenState extends State<InitialTripScreen> {
     );
   }
 
-  // ===================== 위젯 빌더들 =====================
+  /// ---------------- 위젯 빌더 ----------------
 
-  /// 1) 편명으로 왕복 입력
   Widget _buildFlightNumberForm() {
     return Column(
       key: const ValueKey('flightForm'),
@@ -247,12 +390,8 @@ class _InitialTripScreenState extends State<InitialTripScreen> {
             labelText: '가는 편명 (예: KE123)',
           ),
           textCapitalization: TextCapitalization.characters,
-          validator: (value) {
-            if (value == null || value.trim().isEmpty) {
-              return '가는 편명을 입력해 주세요.';
-            }
-            return null;
-          },
+          validator: (value) =>
+          value == null || value.trim().isEmpty ? '가는 편명을 입력해 주세요.' : null,
         ),
         const SizedBox(height: 12),
         TextFormField(
@@ -261,23 +400,18 @@ class _InitialTripScreenState extends State<InitialTripScreen> {
             labelText: '오는 편명 (예: KE124)',
           ),
           textCapitalization: TextCapitalization.characters,
-          validator: (value) {
-            if (value == null || value.trim().isEmpty) {
-              return '오는 편명을 입력해 주세요.';
-            }
-            return null;
-          },
+          validator: (value) =>
+          value == null || value.trim().isEmpty ? '오는 편명을 입력해 주세요.' : null,
         ),
         const SizedBox(height: 16),
         const Text(
-          '※ 편명 기준으로 나중에 항공 규정·경로 정보를 자동으로 가져올 수 있어요.',
+          '※ 편명 기준으로 항공 규정·경로 정보를 자동으로 가져올 수 있어요.',
           style: TextStyle(fontSize: 12, color: Colors.grey),
         ),
       ],
     );
   }
 
-  /// 2) 국가 / 공항 / 항공사 / 좌석등급 입력
   Widget _buildDetailForm() {
     return Column(
       key: const ValueKey('detailForm'),
@@ -289,17 +423,12 @@ class _InitialTripScreenState extends State<InitialTripScreen> {
         ),
         const SizedBox(height: 16),
 
-        // 🔹 출발 국가
+        // 출발 국가
         DropdownButtonFormField<String>(
           value: _fromCountry,
           decoration: const InputDecoration(labelText: '출발 국가'),
           items: _countries
-              .map(
-                (c) => DropdownMenuItem(
-              value: c,
-              child: Text(c),
-            ),
-          )
+              .map((c) => DropdownMenuItem(value: c, child: Text(c)))
               .toList(),
           onChanged: (value) {
             setState(() {
@@ -307,46 +436,32 @@ class _InitialTripScreenState extends State<InitialTripScreen> {
               _fromAirport = null;
             });
           },
-          validator: (value) =>
-          value == null ? '출발 국가를 선택해 주세요.' : null,
+          validator: (value) => value == null ? '출발 국가를 선택해 주세요.' : null,
         ),
         const SizedBox(height: 8),
 
-        // 🔹 출발 공항 (출발 국가에 종속)
+        // 출발 공항
         DropdownButtonFormField<String>(
           value: _fromAirport,
           decoration: const InputDecoration(labelText: '출발 공항'),
           items: _fromAirports
-              .map(
-                (a) => DropdownMenuItem(
-              value: a,
-              child: Text(a),
-            ),
-          )
+              .map((a) => DropdownMenuItem(value: a, child: Text(a)))
               .toList(),
           onChanged: (_fromCountry == null)
               ? null
               : (value) {
-            setState(() {
-              _fromAirport = value;
-            });
+            setState(() => _fromAirport = value);
           },
-          validator: (value) =>
-          value == null ? '출발 공항을 선택해 주세요.' : null,
+          validator: (value) => value == null ? '출발 공항을 선택해 주세요.' : null,
         ),
         const SizedBox(height: 16),
 
-        // 🔹 도착 국가
+        // 도착 국가
         DropdownButtonFormField<String>(
           value: _toCountry,
           decoration: const InputDecoration(labelText: '도착 국가'),
           items: _countries
-              .map(
-                (c) => DropdownMenuItem(
-              value: c,
-              child: Text(c),
-            ),
-          )
+              .map((c) => DropdownMenuItem(value: c, child: Text(c)))
               .toList(),
           onChanged: (value) {
             setState(() {
@@ -354,46 +469,32 @@ class _InitialTripScreenState extends State<InitialTripScreen> {
               _toAirport = null;
             });
           },
-          validator: (value) =>
-          value == null ? '도착 국가를 선택해 주세요.' : null,
+          validator: (value) => value == null ? '도착 국가를 선택해 주세요.' : null,
         ),
         const SizedBox(height: 8),
 
-        // 🔹 도착 공항 (도착 국가에 종속)
+        // 도착 공항
         DropdownButtonFormField<String>(
           value: _toAirport,
           decoration: const InputDecoration(labelText: '도착 공항'),
           items: _toAirports
-              .map(
-                (a) => DropdownMenuItem(
-              value: a,
-              child: Text(a),
-            ),
-          )
+              .map((a) => DropdownMenuItem(value: a, child: Text(a)))
               .toList(),
           onChanged: (_toCountry == null)
               ? null
               : (value) {
-            setState(() {
-              _toAirport = value;
-            });
+            setState(() => _toAirport = value);
           },
-          validator: (value) =>
-          value == null ? '도착 공항을 선택해 주세요.' : null,
+          validator: (value) => value == null ? '도착 공항을 선택해 주세요.' : null,
         ),
         const SizedBox(height: 16),
 
-        // 🔹 항공사 (국가와 무관)
+        // 항공사
         DropdownButtonFormField<String>(
           value: _airline,
           decoration: const InputDecoration(labelText: '항공사'),
           items: _allAirlines
-              .map(
-                (air) => DropdownMenuItem(
-              value: air,
-              child: Text(air),
-            ),
-          )
+              .map((air) => DropdownMenuItem(value: air, child: Text(air)))
               .toList(),
           onChanged: (value) {
             setState(() {
@@ -401,22 +502,16 @@ class _InitialTripScreenState extends State<InitialTripScreen> {
               _seatClass = null;
             });
           },
-          validator: (value) =>
-          value == null ? '항공사를 선택해 주세요.' : null,
+          validator: (value) => value == null ? '항공사를 선택해 주세요.' : null,
         ),
         const SizedBox(height: 16),
 
-        // 🔹 좌석 등급 (항공사에 종속)
+        // 좌석 등급
         DropdownButtonFormField<String>(
           value: _seatClass,
           decoration: const InputDecoration(labelText: '좌석 등급'),
           items: _seatClassesForSelectedAirline
-              .map(
-                (s) => DropdownMenuItem(
-              value: s,
-              child: Text(s),
-            ),
-          )
+              .map((s) => DropdownMenuItem(value: s, child: Text(s)))
               .toList(),
           onChanged: (_airline == null)
               ? null
@@ -425,11 +520,10 @@ class _InitialTripScreenState extends State<InitialTripScreen> {
               _seatClass = value;
             });
           },
-          validator: (value) =>
-          value == null ? '좌석 등급을 선택해 주세요.' : null,
+          validator: (value) => value == null ? '좌석 등급을 선택해 주세요.' : null,
         ),
-        const SizedBox(height: 16),
 
+        const SizedBox(height: 16),
         const Text(
           '※ 입력하신 왕복 구간을 기준으로 항공 규정을 계산할 수 있어요.',
           style: TextStyle(fontSize: 12, color: Colors.grey),

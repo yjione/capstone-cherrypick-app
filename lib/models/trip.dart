@@ -1,3 +1,4 @@
+//lib/models/trip.dart
 class Trip {
   final String id;
   final String name;

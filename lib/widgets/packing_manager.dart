@@ -1,3 +1,4 @@
+// lib/widgets/packing_manager.dart
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/packing_provider.dart';
@@ -14,6 +15,12 @@ class PackingManager extends StatelessWidget {
     return Consumer<PackingProvider>(
       builder: (context, packingProvider, child) {
         final bags = packingProvider.bags;
+        final isLoading = packingProvider.isLoading;
+
+        // 🔄 서버에서 가방/아이템 로딩 중 + 아직 데이터 없음 → 로딩 스피너
+        if (isLoading && bags.isEmpty) {
+          return const Center(child: CircularProgressIndicator());
+        }
 
         // 가방이 하나도 없을 때: 빈 상태 + 추가 버튼
         if (bags.isEmpty) {
@@ -87,7 +94,8 @@ class _SearchBar extends StatelessWidget {
             filled: true,
             fillColor: scheme.surfaceVariant.withOpacity(0.12),
             prefixIcon: Icon(Icons.search, color: textColor.withOpacity(0.5)),
-            contentPadding: const EdgeInsets.symmetric(vertical: 10, horizontal: 0),
+            contentPadding:
+            const EdgeInsets.symmetric(vertical: 10, horizontal: 0),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
               borderSide: BorderSide(color: neutralBorder, width: 1),
@@ -98,7 +106,8 @@ class _SearchBar extends StatelessWidget {
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(color: neutralBorderFocused, width: 1), // ← 핑크 X
+              borderSide:
+              BorderSide(color: neutralBorderFocused, width: 1), // ← 핑크 X
             ),
           ),
           cursorColor: textColor.withOpacity(0.8),
@@ -177,7 +186,10 @@ class _AddBagCard extends StatelessWidget {
               SizedBox(height: 8),
               Text(
                 '가방 추가',
-                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: Colors.grey),
+                style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                    color: Colors.grey),
               ),
             ],
           ),
@@ -203,13 +215,14 @@ class _BagTabs extends StatelessWidget {
         // Provider의 selectedBag과 TabController 인덱스를 동기화
         final selectedId = packingProvider.selectedBag;
         int selectedIndex = 0;
-        if (selectedId != null) {
+        if (selectedId.isNotEmpty) {
           final idx = bags.indexWhere((b) => b.id == selectedId);
           if (idx >= 0) selectedIndex = idx;
         }
 
         WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (controller.index != selectedIndex && controller.length == bags.length) {
+          if (controller.index != selectedIndex &&
+              controller.length == bags.length) {
             controller.index = selectedIndex;
           }
         });
