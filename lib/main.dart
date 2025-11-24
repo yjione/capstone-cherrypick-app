@@ -7,9 +7,11 @@ import 'providers/trip_provider.dart';
 import 'providers/packing_provider.dart';
 import 'providers/preview_provider.dart';
 import 'providers/device_provider.dart';
+import 'providers/reference_provider.dart';
 
 import 'service/preview_api.dart';
 import 'service/device_api.dart';
+import 'service/reference_api.dart';
 
 import 'screens/luggage_screen.dart';
 import 'screens/scan_screen.dart';
@@ -51,6 +53,11 @@ class CherryPickApp extends StatelessWidget {
             api: PreviewApiService(baseUrl: previewBaseUrl),
           ),
         ),
+        ChangeNotifierProvider(
+          create: (_) => ReferenceProvider(
+            api: ReferenceApiService(),
+          ),
+        ),
         // ✅ 이미 초기화된 DeviceProvider 주입
         ChangeNotifierProvider<DeviceProvider>.value(
           value: deviceProvider,
@@ -69,7 +76,6 @@ class CherryPickApp extends StatelessWidget {
 }
 
 final GoRouter _router = GoRouter(
-  // 초기 진입 화면
   initialLocation: '/luggage',
   routes: [
     GoRoute(
