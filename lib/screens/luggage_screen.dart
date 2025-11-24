@@ -9,6 +9,7 @@ import '../providers/packing_provider.dart';
 import '../providers/trip_provider.dart';
 import '../providers/device_provider.dart';
 import '../models/trip.dart';
+import '../widgets/cherry_app_bar.dart';   // ✅ 공용 AppBar
 
 class LuggageScreen extends StatefulWidget {
   const LuggageScreen({super.key});
@@ -79,10 +80,7 @@ class _LuggageScreenState extends State<LuggageScreen> {
     if (isLoadingTrips) {
       return Scaffold(
         backgroundColor: scheme.surface,
-        appBar: AppBar(
-          title: const Text('cherry pick'),
-          centerTitle: true,
-        ),
+        appBar: const CherryAppBar(),      // ✅ 중앙 로고 텍스트
         body: const Center(
           child: CircularProgressIndicator(),
         ),
@@ -109,7 +107,7 @@ class _LuggageScreenState extends State<LuggageScreen> {
       return const SizedBox.shrink();
     }
 
-    // ---------- 아래는 기존 코드 그대로 ----------
+    // ---------- 아래는 기존 코드 그대로 (상단 타이틀만 이미지로 교체) ----------
     PreferredSizeWidget _topBar() {
       final scheme = Theme.of(context).colorScheme;
       final textColor = scheme.onSurface;
@@ -128,12 +126,11 @@ class _LuggageScreenState extends State<LuggageScreen> {
                   child: Stack(
                     alignment: Alignment.center,
                     children: [
-                      const Text(
-                        'cherry pick',
-                        style: TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.w700,
-                        ),
+                      // 🔻 가운데 텍스트 대신 PNG 로고 텍스트
+                      Image.asset(
+                        'assets/images/Cherry_Pick_Text.png',
+                        height: 24,          // 필요하면 26~28로 키워봐도 됨
+                        fit: BoxFit.contain,
                       ),
                       Align(
                         alignment: Alignment.centerLeft,
