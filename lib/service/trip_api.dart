@@ -1,8 +1,8 @@
 // lib/service/trip_api.dart
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'package:flutter/foundation.dart' show kIsWeb;
 
-/// Flights + Trips 관련 API 호출 모음
 class TripApiService {
   static const String _baseUrl =
       'https://unmatted-cecilia-criticizingly.ngrok-free.dev';
@@ -35,8 +35,7 @@ class TripApiService {
       throw Exception('Lookup flight failed: ${resp.statusCode} ${resp.body}');
     }
 
-    final Map<String, dynamic> body =
-    jsonDecode(resp.body) as Map<String, dynamic>;
+    final body = jsonDecode(resp.body) as Map<String, dynamic>;
     return FlightLookupResult.fromJson(body);
   }
 
@@ -84,16 +83,15 @@ class TripApiService {
       throw Exception('Create trip failed: ${resp.statusCode} ${resp.body}');
     }
 
-    final Map<String, dynamic> data =
-    jsonDecode(resp.body) as Map<String, dynamic>;
+    final data = jsonDecode(resp.body) as Map<String, dynamic>;
     return CreatedTrip.fromJson(data);
   }
 
-  /// ---------------- List Trips (GET /v1/trips) ----------------
+  /// ---------------- List Trips ----------------
   Future<TripListResponse> listTrips({
     required String deviceUuid,
     required String deviceToken,
-    String status = 'all', // ✅ 기본값을 active -> all 로 변경
+    String status = 'all',
     int limit = 20,
     int offset = 0,
   }) async {
@@ -113,9 +111,8 @@ class TripApiService {
       },
     );
 
-    // HTML이 오면 강제 에러 처리
+    // HTML 오면 강제 에러 처리
     final contentType = resp.headers['content-type'] ?? '';
-
     if (!contentType.startsWith('application/json')) {
       throw Exception(
           'Unexpected response (HTML instead of JSON):\n${resp.body}');
@@ -125,23 +122,19 @@ class TripApiService {
       throw Exception('List trips failed: ${resp.statusCode} ${resp.body}');
     }
 
-    final Map<String, dynamic> json =
-    jsonDecode(resp.body) as Map<String, dynamic>;
+    final json = jsonDecode(resp.body) as Map<String, dynamic>;
     return TripListResponse.fromJson(json);
   }
 
-  /// ---------------- Delete Trip (DELETE /v1/trips/{trip_id}) ----------------
+  /// ---------------- Delete Trip ----------------
   Future<void> deleteTrip({
     required String deviceUuid,
     required String deviceToken,
     required int tripId,
-    bool purge = false, // true면 hard delete
+    bool purge = false,
   }) async {
-    final uri = Uri.parse('$_baseUrl/v1/trips/$tripId').replace(
-      queryParameters: {
-        'purge': purge.toString(),
-      },
-    );
+    final uri = Uri.parse('$_baseUrl/v1/trips/$tripId')
+        .replace(queryParameters: {'purge': purge.toString()});
 
     final resp = await http.delete(
       uri,

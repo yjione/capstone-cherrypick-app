@@ -4,6 +4,7 @@ import 'package:http/http.dart' as http;
 
 import '../models/bag.dart';
 import '../models/packing_item.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 
 class BagApiService {
   static const String _baseUrl =
@@ -116,22 +117,10 @@ class BagApiService {
     jsonDecode(resp.body) as Map<String, dynamic>;
     final List<dynamic> rawItems = json['items'] as List<dynamic>? ?? [];
 
-    return rawItems.map((e) {
-      final m = e as Map<String, dynamic>;
-      final status = m['status'] as String? ?? 'todo';
-      final packed = status == 'done' || status == 'packed';
-
-      return PackingItem(
-        id: (m['item_id'] ?? '').toString(),
-        name: m['title'] as String? ?? '',
-        category: '기타', // 서버에 카테고리 없어서 기본값
-        packed: packed,
-        bagId: (m['bag_id'] ?? '').toString(),
-        location: null,
-        weight: null,
-        notes: m['note'] as String?,
-      );
-    }).toList();
+    // 🔥 여기서부터 PackingItem.fromServerJson 사용
+    return rawItems
+        .map((e) => PackingItem.fromServerJson(e as Map<String, dynamic>))
+        .toList();
   }
 
   /// POST /v1/trips/{trip_id}/bags
