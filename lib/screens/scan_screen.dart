@@ -1,9 +1,11 @@
+// lib/screens/scan_screen.dart
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
 
 import '../widgets/bottom_navigation.dart';
 import '../widgets/item_scanner.dart';
+import '../widgets/cherry_app_bar.dart';      // ✅ 추가
 import '../providers/trip_provider.dart';
 
 class ScanScreen extends StatelessWidget {
@@ -21,13 +23,7 @@ class ScanScreen extends StatelessWidget {
     if (currentTrip == null) {
       return Scaffold(
         backgroundColor: scheme.surface,
-        appBar: AppBar(
-          backgroundColor: Colors.transparent,
-          elevation: 0,
-          title: const Text('cherry pick'),
-          centerTitle: true,
-          automaticallyImplyLeading: false,
-        ),
+        appBar: const CherryAppBar(),             // ✅ 통일
         body: Center(
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 24),
@@ -73,17 +69,7 @@ class ScanScreen extends StatelessWidget {
     // 🔹 2) 현재 여행이 있는 정상 케이스 → 스캐너 UI
     return Scaffold(
       backgroundColor: scheme.surface,
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        title: Text(
-          'cherry pick',
-          // 원하면 현재 여행 이름도 타이틀에 살짝 넣을 수 있음
-          // '${currentTrip.name} · cherry pick',
-        ),
-        centerTitle: true,
-        automaticallyImplyLeading: false,
-      ),
+      appBar: const CherryAppBar(),               // ✅ 통일
       body: const ItemScanner(),
       bottomNavigationBar: const BottomNavigation(currentIndex: 1),
     );

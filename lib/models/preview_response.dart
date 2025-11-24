@@ -1,4 +1,5 @@
 // lib/models/preview_response.dart
+
 class PreviewResponse {
   final String state;
   final Resolved resolved;
@@ -30,6 +31,17 @@ class PreviewResponse {
       flags: Flags.fromJson(json['flags'] as Map<String, dynamic>),
     );
   }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'state': state,
+      'resolved': resolved.toJson(),
+      'engine': engine.toJson(),
+      if (narration != null) 'narration': narration!.toJson(),
+      'ai_tips': aiTips.map((e) => e.toJson()).toList(),
+      'flags': flags.toJson(),
+    };
+  }
 }
 
 // ---------- resolved ----------
@@ -50,6 +62,14 @@ class Resolved {
       canonical: json['canonical'] as String,
       locale: json['locale'] as String,
     );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'label': label,
+      'canonical': canonical,
+      'locale': locale,
+    };
   }
 }
 
@@ -87,6 +107,18 @@ class Engine {
           .toList(),
     );
   }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'req_id': reqId,
+      'canonical': canonical,
+      'decision': decision.toJson(),
+      'conditions': conditions.toJson(),
+      'sources': sources,
+      'trace': trace,
+      'ai_tips': aiTips.map((e) => e.toJson()).toList(),
+    };
+  }
 }
 
 class Decision {
@@ -104,6 +136,13 @@ class Decision {
       DecisionSide.fromJson(json['carry_on'] as Map<String, dynamic>),
       checked: DecisionSide.fromJson(json['checked'] as Map<String, dynamic>),
     );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'carry_on': carryOn.toJson(),
+      'checked': checked.toJson(),
+    };
   }
 }
 
@@ -129,6 +168,14 @@ class DecisionSide {
           .toList(),
     );
   }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'status': status,
+      'badges': badges,
+      'reason_codes': reasonCodes,
+    };
+  }
 }
 
 class Conditions {
@@ -148,6 +195,14 @@ class Conditions {
       checked: (json['checked'] as Map<String, dynamic>? ?? {}),
       common: (json['common'] as Map<String, dynamic>? ?? {}),
     );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'carry_on': carryOn,
+      'checked': checked,
+      'common': common,
+    };
   }
 }
 
@@ -184,6 +239,18 @@ class Narration {
       sources: (json['sources'] as List<dynamic>? ?? []),
     );
   }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'title': title,
+      'carry_on_card': carryOnCard.toJson(),
+      'checked_card': checkedCard.toJson(),
+      'bullets': bullets,
+      'badges': badges,
+      'footnote': footnote,
+      'sources': sources,
+    };
+  }
 }
 
 class CardInfo {
@@ -200,6 +267,13 @@ class CardInfo {
       statusLabel: json['status_label'] as String,
       shortReason: json['short_reason'] as String,
     );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'status_label': statusLabel,
+      'short_reason': shortReason,
+    };
   }
 }
 
@@ -227,13 +301,22 @@ class AiTip {
       relevance: (json['relevance'] as num).toDouble(),
     );
   }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'text': text,
+      'tags': tags,
+      'relevance': relevance,
+    };
+  }
 }
 
 // ---------- flags ----------
 class Flags {
-  final String? fallback;     // "classic_pipeline"
-  final String? llmError;     // "LLM output is not valid JSON"
-  final bool needsReview;     // false
+  final String? fallback; // 예: "classic_pipeline"
+  final String? llmError; // 예: "LLM output is not valid JSON"
+  final bool needsReview;
 
   Flags({
     this.fallback,
@@ -247,5 +330,13 @@ class Flags {
       llmError: json['llm_error'] as String?,
       needsReview: json['needs_review'] as bool? ?? false,
     );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      if (fallback != null) 'fallback': fallback,
+      if (llmError != null) 'llm_error': llmError,
+      'needs_review': needsReview,
+    };
   }
 }
