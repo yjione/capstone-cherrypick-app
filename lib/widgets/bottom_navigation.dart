@@ -1,111 +1,80 @@
-//lib/widgets/bottom_navigation.dart
+// lib/widgets/bottom_navigation.dart
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 class BottomNavigation extends StatelessWidget {
   final int currentIndex;
 
-  const BottomNavigation({super.key, required this.currentIndex});
-
-  @override
-  Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-
-    return Container(
-      decoration: BoxDecoration(
-        color: cs.surface,
-        border: Border(top: BorderSide(color: cs.outline.withOpacity(0.16), width: 1)),
-      ),
-      child: SafeArea(
-        top: false,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: [
-              _NavItem(
-                icon: Icons.circle,
-                label: '체리픽',
-                isActive: currentIndex == 0,
-                onTap: () => context.go('/luggage'),
-              ),
-              _NavItem(
-                icon: Icons.camera_alt_rounded,
-                label: '스캔',
-                isActive: currentIndex == 1,
-                onTap: () => context.go('/scan'),
-              ),
-              _NavItem(
-                icon: Icons.flight_takeoff_rounded,
-                label: '항공 규정',
-                isActive: currentIndex == 2,
-                onTap: () => context.go('/checklist'),
-              ),
-              _NavItem(
-                icon: Icons.location_on_rounded,
-                label: '추천',
-                isActive: currentIndex == 3,
-                onTap: () => context.go('/recommendations'),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _NavItem extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final bool isActive;
-  final VoidCallback onTap;
-
-  const _NavItem({
-    required this.icon,
-    required this.label,
-    required this.isActive,
-    required this.onTap,
+  const BottomNavigation({
+    super.key,
+    required this.currentIndex,
   });
 
+  void _onTap(BuildContext context, int index) {
+    if (index == currentIndex) return;
+
+    switch (index) {
+      case 0:
+        context.go('/luggage');
+        break;
+      case 1:
+        context.go('/scan');
+        break;
+      case 2:
+        context.go('/checklist');
+        break;
+      case 3:
+        context.go('/recommendations');
+        break;
+    }
+  }
+
+  /// 체리픽 전용 로고 아이콘 (선택/비선택 색만 바뀌게)
+  Widget _buildCherryIcon(Color color) {
+    return Image.asset(
+      'assets/images/Cherry_Pick_LOGO.png',
+      width: 24,
+      height: 24,
+      color: color, // PNG가 단색이 아니라면 이 줄은 지워도 됨
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-    return InkWell(
-      borderRadius: BorderRadius.circular(12),
-      onTap: onTap,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Stack(
-              alignment: Alignment.center,
-              children: [
-                Icon(icon, size: 24, color: isActive ? cs.primary : cs.onSurfaceVariant),
-                if (isActive)
-                  Positioned(
-                    bottom: -6,
-                    child: Container(
-                      width: 6,
-                      height: 6,
-                      decoration: BoxDecoration(color: cs.primary, borderRadius: BorderRadius.circular(3)),
-                    ),
-                  ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: isActive ? FontWeight.w700 : FontWeight.w600,
-                color: isActive ? cs.primary : cs.onSurfaceVariant,
-              ),
-            ),
-          ],
+
+    final selectedColor = cs.primary;
+    final unselectedColor = cs.onSurfaceVariant;
+
+    return BottomNavigationBar(
+      type: BottomNavigationBarType.fixed,
+      currentIndex: currentIndex,
+      onTap: (index) => _onTap(context, index),
+      selectedItemColor: selectedColor,
+      unselectedItemColor: unselectedColor,
+      showUnselectedLabels: true,
+      items: [
+        BottomNavigationBarItem(
+          icon: _buildCherryIcon(unselectedColor),
+          activeIcon: _buildCherryIcon(selectedColor),
+          label: '체리픽',
         ),
-      ),
+        const BottomNavigationBarItem(
+          icon: Icon(Icons.camera_alt_outlined),
+          activeIcon: Icon(Icons.camera_alt),
+          label: '스캔',
+        ),
+        const BottomNavigationBarItem(
+          icon: Icon(Icons.flight_takeoff_outlined),
+          activeIcon: Icon(Icons.flight_takeoff),
+          label: '항공 규정',
+        ),
+        const BottomNavigationBarItem(
+          icon: Icon(Icons.place_outlined),
+          activeIcon: Icon(Icons.place),
+          label: '추천',
+        ),
+      ],
     );
   }
 }
