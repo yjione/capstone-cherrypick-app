@@ -1,4 +1,19 @@
+// lib/widgets/regulation_checker.dart
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+
+import '../providers/trip_provider.dart';
+import '../providers/device_provider.dart';
+import '../providers/preview_provider.dart';
+
+import '../models/preview_request.dart';
+import '../models/preview_response.dart';
+
+import '../service/reference_api.dart';
+import '../models/country_ref.dart';
+import '../models/airport_ref.dart';
+import '../models/airline_ref.dart';
+import '../models/cabin_class_ref.dart';
 
 class RegulationChecker extends StatefulWidget {
   const RegulationChecker({super.key});
@@ -11,85 +26,195 @@ class _RegulationCheckerState extends State<RegulationChecker>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
 
-  String? _selectedCountry;
-  String? _selectedAirport;
-  String? _selectedAirline;
-  String? _selectedSeatClass;
+  final _itemController = TextEditingController();
 
-  bool _isLoading = false;
-  RegulationData? _regulationData;
+  // reference API
+  final ReferenceApiService _refApi = ReferenceApiService();
 
-  /// ✅ 국가 → 공항 목록
-  final Map<String, List<String>> _countryAirports = const {
-    '일본': [
-      '나리타(NRT)',
-      '하네다(HND)',
-      '간사이(KIX)',
-    ],
-    '미국': [
-      'LAX(로스앤젤레스)',
-      'JFK(뉴욕)',
-      'SFO(샌프란시스코)',
-    ],
-    '한국': [
-      '인천(ICN)',
-      '김포(GMP)',
-      '김해(PUS)',
-    ],
-  };
+  // reference 데이터 목록
+  List<CountryRef> _countries = [];
+  List<AirportRef> _airports = [];
+  List<AirlineRef> _airlines = [];
+  List<CabinClassRef> _cabinClasses = [];
 
-  /// ✅ 항공사 전체 목록 (국가와 무관)
-  final List<String> _allAirlines = const [
-    '대한항공',
-    '아시아나항공',
-    '제주항공',
-    'JAL',
-    '델타',
-    '아메리칸항공',
-  ];
+  // 선택된 값들
+  CountryRef? _selectedCountry;
+  AirportRef? _selectedAirport;
+  AirlineRef? _selectedAirline;
+  CabinClassRef? _selectedCabinClass;
 
-  /// ✅ 항공사 → 좌석 등급 (항공사에만 종속)
-  final Map<String, List<String>> _airlineSeatClasses = const {
-    '대한항공': ['이코노미', '프리미엄 이코노미', '비즈니스', '일등석'],
-    '아시아나항공': ['이코노미', '비즈니스'],
-    '제주항공': ['이코노미'],
-    'JAL': ['이코노미', '프리미엄 이코노미', '비즈니스'],
-    '델타': ['이코노미', '비즈니스'],
-    '아메리칸항공': ['이코노미', '비즈니스', '일등석'],
-  };
+  // 로딩 플래그
+  bool _loadingCountries = false;
+  bool _loadingAirports = false;
+  bool _loadingAirlines = false;
+  bool _loadingCabins = false;
 
-  // ----- Getter들 -----
-
-  List<String> get _countries => _countryAirports.keys.toList();
-
-  List<String> get _airports {
-    if (_selectedCountry == null) return [];
-    return _countryAirports[_selectedCountry!] ?? [];
-  }
-
-  // 항공사는 국가/공항과 무관하게 동일한 전체 리스트
-  List<String> get _airlines => _allAirlines;
-
-  // 좌석 등급은 항공사에만 종속
-  List<String> get _seatClasses {
-    if (_selectedAirline == null) return [];
-    return _airlineSeatClasses[_selectedAirline!] ?? [];
-  }
+  // preview 결과
+  bool _isPreviewLoading = false;
+  PreviewResponse? _preview;
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 4, vsync: this);
+    _tabController = TabController(length: 2, vsync: this);
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadInitialReferences();
+    });
   }
 
   @override
   void dispose() {
     _tabController.dispose();
+    _itemController.dispose();
     super.dispose();
   }
 
+  // ---------------------------------------------------------------------------
+  // Reference API 호출
+  // ---------------------------------------------------------------------------
+
+  Future<void> _loadInitialReferences() async {
+    final device = context.read<DeviceProvider>();
+    final deviceUuid = device.deviceUuid;
+    final deviceToken = device.deviceToken;
+
+    if (deviceUuid == null || deviceToken == null) {
+      return;
+    }
+
+    setState(() {
+      _loadingCountries = true;
+      _loadingAirlines = true;
+    });
+
+    try {
+      final countriesFuture = _refApi.listCountries(
+        deviceUuid: deviceUuid,
+        deviceToken: deviceToken,
+      );
+      final airlinesFuture = _refApi.listAirlines(
+        deviceUuid: deviceUuid,
+        deviceToken: deviceToken,
+      );
+
+      final results = await Future.wait([countriesFuture, airlinesFuture]);
+
+      if (!mounted) return;
+
+      setState(() {
+        _countries = results[0] as List<CountryRef>;
+        _airlines = results[1] as List<AirlineRef>;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('기본 정보 로딩 실패: $e')),
+      );
+    } finally {
+      if (!mounted) return;
+      setState(() {
+        _loadingCountries = false;
+        _loadingAirlines = false;
+      });
+    }
+  }
+
+  Future<void> _loadAirportsForCountry(CountryRef country) async {
+    final device = context.read<DeviceProvider>();
+    final deviceUuid = device.deviceUuid;
+    final deviceToken = device.deviceToken;
+
+    if (deviceUuid == null || deviceToken == null) return;
+
+    setState(() {
+      _loadingAirports = true;
+      _airports = [];
+      _selectedAirport = null;
+    });
+
+    try {
+      final airports = await _refApi.listAirports(
+        deviceUuid: deviceUuid,
+        deviceToken: deviceToken,
+        countryCode: country.code,
+        limit: 200,
+      );
+
+      if (!mounted) return;
+
+      setState(() {
+        _airports = airports;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('공항 정보 로딩 실패: $e')),
+      );
+    } finally {
+      if (!mounted) return;
+      setState(() {
+        _loadingAirports = false;
+      });
+    }
+  }
+
+  Future<void> _loadCabinClassesForAirline(AirlineRef airline) async {
+    final device = context.read<DeviceProvider>();
+    final deviceUuid = device.deviceUuid;
+    final deviceToken = device.deviceToken;
+
+    if (deviceUuid == null || deviceToken == null) return;
+
+    setState(() {
+      _loadingCabins = true;
+      _cabinClasses = [];
+      _selectedCabinClass = null;
+    });
+
+    try {
+      final cabins = await _refApi.listCabinClasses(
+        deviceUuid: deviceUuid,
+        deviceToken: deviceToken,
+        airlineCode: airline.code,
+      );
+
+      if (!mounted) return;
+
+      setState(() {
+        _cabinClasses = cabins;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('좌석 등급 정보 로딩 실패: $e')),
+      );
+    } finally {
+      if (!mounted) return;
+      setState(() {
+        _loadingCabins = false;
+      });
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // UI
+  // ---------------------------------------------------------------------------
+
+  bool get _canSearch =>
+      !_isPreviewLoading &&
+          _selectedCountry != null &&
+          _selectedAirport != null &&
+          _selectedAirline != null &&
+          _selectedCabinClass != null &&
+          _itemController.text.trim().isNotEmpty;
+
   @override
   Widget build(BuildContext context) {
+    final device = context.watch<DeviceProvider>();
+    final deviceMissing =
+        device.deviceUuid == null || device.deviceToken == null;
+
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Column(
@@ -104,9 +229,22 @@ class _RegulationCheckerState extends State<RegulationChecker>
               ),
             ),
           ),
-          const SizedBox(height: 24),
-          _buildSearchCard(),
-          if (_regulationData != null) ...[
+          const SizedBox(height: 8),
+          if (deviceMissing)
+            Padding(
+              padding: const EdgeInsets.only(top: 8, bottom: 8),
+              child: Text(
+                '⚠️ 기기 등록 정보가 없어 reference / preview API를 호출할 수 없습니다.\n'
+                    '여행 선택 화면에서 한 번 이상 진입해 기기 등록을 완료해주세요.',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Theme.of(context).colorScheme.error,
+                ),
+              ),
+            ),
+          const SizedBox(height: 8),
+          _buildSearchCard(deviceMissing),
+          if (_preview != null) ...[
             const SizedBox(height: 24),
             _buildResultHeader(),
             const SizedBox(height: 16),
@@ -117,118 +255,158 @@ class _RegulationCheckerState extends State<RegulationChecker>
     );
   }
 
-  Widget _buildSearchCard() {
+  Widget _buildSearchCard(bool deviceMissing) {
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(24),
         child: Column(
           children: [
-            // 1) 국가 선택
-            DropdownButtonFormField<String>(
-              value: _selectedCountry,
+            // 아이템 이름
+            TextFormField(
+              controller: _itemController,
               decoration: const InputDecoration(
-                labelText: '목적지 국가',
+                labelText: '아이템 이름',
+                hintText: '예: 노트북, 보조배터리, 향수',
               ),
-              items: _countries
-                  .map(
-                    (country) => DropdownMenuItem(
-                  value: country,
-                  child: Text(country),
-                ),
-              )
-                  .toList(),
-              onChanged: (value) {
+              onChanged: (_) {
                 setState(() {
-                  _selectedCountry = value;
-                  // 국가가 바뀌면 공항만 초기화
-                  _selectedAirport = null;
-                  _selectedSeatClass = null;
-                  _regulationData = null;
+                  _preview = null;
                 });
               },
             ),
             const SizedBox(height: 16),
 
-            // 2) 공항 선택 (국가에 종속)
-            DropdownButtonFormField<String>(
-              value: _selectedAirport,
-              decoration: const InputDecoration(
-                labelText: '공항',
+            // 국가
+            DropdownButtonFormField<CountryRef>(
+              value: _selectedCountry,
+              decoration: InputDecoration(
+                labelText: _loadingCountries
+                    ? '목적지 국가 (로딩 중...)'
+                    : '목적지 국가',
               ),
-              items: _airports
+              items: _countries
                   .map(
-                    (airport) => DropdownMenuItem(
-                  value: airport,
-                  child: Text(airport),
+                    (c) => DropdownMenuItem(
+                  value: c,
+                  // 👉 CountryRef 필드명에 맞게 수정
+                  child: Text('${c.nameKo} (${c.code})'),
                 ),
               )
                   .toList(),
-              onChanged: (_selectedCountry == null)
+              onChanged: (deviceMissing || _loadingCountries)
+                  ? null
+                  : (value) {
+                setState(() {
+                  _selectedCountry = value;
+                  _preview = null;
+                });
+                if (value != null) {
+                  _loadAirportsForCountry(value);
+                }
+              },
+            ),
+            const SizedBox(height: 16),
+
+            // 공항
+            DropdownButtonFormField<AirportRef>(
+              value: _selectedAirport,
+              decoration: InputDecoration(
+                labelText: _selectedCountry == null
+                    ? '도착 공항 (먼저 국가 선택)'
+                    : _loadingAirports
+                    ? '도착 공항 (로딩 중...)'
+                    : '도착 공항',
+              ),
+              items: _airports
+                  .map(
+                    (a) => DropdownMenuItem(
+                  value: a,
+                  // 👉 AirportRef 필드명에 맞게 수정
+                  child: Text('${a.nameKo} (${a.iataCode})'),
+                ),
+              )
+                  .toList(),
+              onChanged: (deviceMissing ||
+                  _selectedCountry == null ||
+                  _loadingAirports)
                   ? null
                   : (value) {
                 setState(() {
                   _selectedAirport = value;
-                  _regulationData = null;
+                  _preview = null;
                 });
               },
             ),
             const SizedBox(height: 16),
 
-            // 3) 항공사 선택 (국가와 무관)
-            DropdownButtonFormField<String>(
+            // 항공사
+            DropdownButtonFormField<AirlineRef>(
               value: _selectedAirline,
-              decoration: const InputDecoration(
-                labelText: '항공사',
+              decoration: InputDecoration(
+                labelText: _loadingAirlines ? '항공사 (로딩 중...)' : '항공사',
               ),
               items: _airlines
                   .map(
-                    (airline) => DropdownMenuItem(
-                  value: airline,
-                  child: Text(airline),
+                    (a) => DropdownMenuItem(
+                  value: a,
+                  // 👉 AirlineRef 필드명에 맞게 수정
+                  child: Text('${a.name} (${a.code})'),
                 ),
               )
                   .toList(),
-              onChanged: (value) {
+              onChanged: (deviceMissing || _loadingAirlines)
+                  ? null
+                  : (value) {
                 setState(() {
                   _selectedAirline = value;
-                  _selectedSeatClass = null;
-                  _regulationData = null;
+                  _preview = null;
                 });
+                if (value != null) {
+                  _loadCabinClassesForAirline(value);
+                }
               },
             ),
             const SizedBox(height: 16),
 
-            // 4) 좌석 등급 선택 (항공사에 종속)
-            DropdownButtonFormField<String>(
-              value: _selectedSeatClass,
-              decoration: const InputDecoration(
-                labelText: '좌석 등급',
+            // 좌석 등급
+            DropdownButtonFormField<CabinClassRef>(
+              value: _selectedCabinClass,
+              decoration: InputDecoration(
+                labelText: _selectedAirline == null
+                    ? '좌석 등급 (먼저 항공사 선택)'
+                    : _loadingCabins
+                    ? '좌석 등급 (로딩 중...)'
+                    : '좌석 등급',
               ),
-              items: _seatClasses
+              items: _cabinClasses
                   .map(
-                    (seat) => DropdownMenuItem(
-                  value: seat,
-                  child: Text(seat),
+                    (c) => DropdownMenuItem(
+                  value: c,
+                  // 👉 CabinClassRef 필드명에 맞게 수정
+                  child: Text('${c.name} (${c.code})'),
                 ),
               )
                   .toList(),
-              onChanged: (_selectedAirline == null)
+              onChanged: (deviceMissing ||
+                  _selectedAirline == null ||
+                  _loadingCabins)
                   ? null
                   : (value) {
                 setState(() {
-                  _selectedSeatClass = value;
-                  _regulationData = null;
+                  _selectedCabinClass = value;
+                  _preview = null;
                 });
               },
             ),
             const SizedBox(height: 24),
 
-            // 버튼
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
-                onPressed: _canSearch ? _searchRegulations : null,
-                child: _isLoading
+                onPressed: (deviceMissing || !_canSearch)
+                    ? null
+                    : _searchRegulations,
+                child: _isPreviewLoading
                     ? const Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
@@ -257,27 +435,44 @@ class _RegulationCheckerState extends State<RegulationChecker>
     );
   }
 
-  bool get _canSearch =>
-      !_isLoading &&
-          _selectedCountry != null &&
-          _selectedAirport != null &&
-          _selectedAirline != null &&
-          _selectedSeatClass != null;
+  // ---------------------------------------------------------------------------
+  // 결과 UI
+  // ---------------------------------------------------------------------------
 
   Widget _buildResultHeader() {
+    final narration = _preview?.narration;
+    final resolved = _preview?.resolved;
+
+    final countryStr = (_selectedCountry != null && _selectedAirport != null)
+        ? '${_selectedCountry!.nameKo} / ${_selectedAirport!.nameKo}'
+        : '';
+    final airlineStr =
+    (_selectedAirline != null && _selectedCabinClass != null)
+        ? '${_selectedAirline!.name} · ${_selectedCabinClass!.name}'
+        : '';
+
     return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Icon(
           Icons.flight,
           color: Theme.of(context).colorScheme.primary,
         ),
         const SizedBox(width: 8),
-        Text(
-          '${_regulationData!.country} / ${_regulationData!.airport}\n'
-              '${_regulationData!.airline} · ${_regulationData!.seatClass}',
-          style: const TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w600,
+        Expanded(
+          child: Text(
+            [
+              if (countryStr.isNotEmpty) countryStr,
+              if (airlineStr.isNotEmpty) airlineStr,
+              if (resolved?.label != null)
+                '검색 아이템: ${resolved!.label}',
+              if (narration?.title != null)
+                '판정 항목: ${narration!.title}',
+            ].join('\n'),
+            style: const TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+            ),
           ),
         ),
       ],
@@ -293,20 +488,16 @@ class _RegulationCheckerState extends State<RegulationChecker>
           tabs: const [
             Tab(text: '기내수하물'),
             Tab(text: '위탁수하물'),
-            Tab(text: '금지품목'),
-            Tab(text: '면세한도'),
           ],
         ),
         const SizedBox(height: 16),
         SizedBox(
-          height: 600,
+          height: 420,
           child: TabBarView(
             controller: _tabController,
             children: [
               _buildCarryOnTab(),
               _buildCheckedTab(),
-              _buildProhibitedTab(),
-              _buildDutyFreeTab(),
             ],
           ),
         ),
@@ -315,48 +506,71 @@ class _RegulationCheckerState extends State<RegulationChecker>
   }
 
   Widget _buildCarryOnTab() {
+    final narration = _preview?.narration;
+    final card = narration?.carryOnCard;
+    final aiTips = _preview?.aiTips ?? [];
+
+    if (narration == null || card == null) {
+      return const Center(child: Text('기내 수하물 판정 정보를 불러올 수 없습니다.'));
+    }
+
+    final color = _statusColor(card.statusLabel);
+
+    // 🔧 List<dynamic> → List<String>
+    final bullets = List<String>.from(narration.bullets);
+    final aiTipBullets = aiTips
+        .map((t) => t.text)
+        .where((t) => t != null)
+        .map((t) => t as String)
+        .toList();
+
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(24),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Row(
+            Row(
               children: [
                 Icon(
-                  Icons.check_circle,
-                  color: Colors.green,
+                  Icons.work_outline,
+                  color: color,
                 ),
-                SizedBox(width: 8),
-                Text(
-                  '기내 수하물 규정',
+                const SizedBox(width: 8),
+                const Text(
+                  '기내 수하물 판정',
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
+                const Spacer(),
+                _buildStatusChip(card.statusLabel, color),
               ],
             ),
-            const SizedBox(height: 16),
-            Row(
-              children: [
-                Expanded(
-                  child: _buildInfoCard(
-                    '최대 무게',
-                    _regulationData!.carryOn.maxWeight,
-                  ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: _buildInfoCard(
-                    '최대 크기',
-                    _regulationData!.carryOn.maxSize,
-                  ),
-                ),
-              ],
+            const SizedBox(height: 12),
+            Text(
+              card.shortReason,
+              style: TextStyle(
+                fontSize: 14,
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
             ),
             const SizedBox(height: 16),
-            _buildLiquidRestrictions(),
+            if (bullets.isNotEmpty)
+              _NoticeBox(
+                icon: Icons.info_outline,
+                title: '추가 안내',
+                bullets: bullets,
+              ),
+            const SizedBox(height: 16),
+            if (aiTipBullets.isNotEmpty)
+              _NoticeBox(
+                icon: Icons.lightbulb_outline,
+                title: 'AI 팁',
+                bullets: aiTipBullets,
+                accent: const Color(0xFFF97316),
+              ),
           ],
         ),
       ),
@@ -364,433 +578,221 @@ class _RegulationCheckerState extends State<RegulationChecker>
   }
 
   Widget _buildCheckedTab() {
+    final narration = _preview?.narration;
+    final card = narration?.checkedCard;
+    final aiTips = _preview?.aiTips ?? [];
+
+    if (narration == null || card == null) {
+      return const Center(child: Text('위탁 수하물 판정 정보를 불러올 수 없습니다.'));
+    }
+
+    final color = _statusColor(card.statusLabel);
+
+    // 🔧 List<dynamic> → List<String>
+    final bullets = List<String>.from(narration.bullets);
+    final aiTipBullets = aiTips
+        .map((t) => t.text)
+        .where((t) => t != null)
+        .map((t) => t as String)
+        .toList();
+
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(24),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Row(
-              children: [
-                Icon(
-                  Icons.check_circle,
-                  color: Colors.blue,
-                ),
-                SizedBox(width: 8),
-                Text(
-                  '위탁 수하물 규정',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
             Row(
               children: [
-                Expanded(
-                  child: _buildInfoCard(
-                    '최대 무게',
-                    _regulationData!.checked.maxWeight,
-                  ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: _buildInfoCard(
-                    '최대 크기',
-                    _regulationData!.checked.maxSize,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            _buildCheckedRestrictions(),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildProhibitedTab() {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Row(
-              children: [
                 Icon(
-                  Icons.warning_amber,
-                  color: Colors.red,
+                  Icons.luggage_outlined,
+                  color: color,
                 ),
-                SizedBox(width: 8),
-                Text(
-                  '금지 품목',
+                const SizedBox(width: 8),
+                const Text(
+                  '위탁 수하물 판정',
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
+                const Spacer(),
+                _buildStatusChip(card.statusLabel, color),
               ],
             ),
-            const SizedBox(height: 16),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: _regulationData!.prohibited.map((item) {
-                return Container(
-                  padding:
-                  const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: Colors.red.shade50,
-                    border: Border.all(color: Colors.red.shade200),
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: Text(
-                    item,
-                    style: TextStyle(
-                      color: Colors.red.shade700,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                );
-              }).toList(),
-            ),
-            const SizedBox(height: 16),
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.red.shade50,
-                border: Border.all(color: Colors.red.shade200),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Icon(
-                        Icons.info_outline,
-                        color: Colors.red.shade600,
-                        size: 16,
-                      ),
-                      const SizedBox(width: 8),
-                      Text(
-                        '중요 안내',
-                        style: TextStyle(
-                          fontWeight: FontWeight.w600,
-                          color: Colors.red.shade800,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    '위 품목들은 기내 및 위탁 수하물 모두 반입이 금지됩니다. 자세한 사항은 해당 항공사 및 공항 보안청에 문의하세요.',
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: Colors.red.shade700,
-                    ),
-                  ),
-                ],
+            const SizedBox(height: 12),
+            Text(
+              card.shortReason,
+              style: TextStyle(
+                fontSize: 14,
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
               ),
             ),
+            const SizedBox(height: 16),
+            if (bullets.isNotEmpty)
+              _NoticeBox(
+                icon: Icons.info_outline,
+                title: '추가 안내',
+                bullets: bullets,
+              ),
+            const SizedBox(height: 16),
+            if (aiTipBullets.isNotEmpty)
+              _NoticeBox(
+                icon: Icons.lightbulb_outline,
+                title: 'AI 팁',
+                bullets: aiTipBullets,
+                accent: const Color(0xFF3B82F6),
+              ),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildDutyFreeTab() {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Row(
-              children: [
-                Icon(
-                  Icons.location_on,
-                  color: Colors.green,
-                ),
-                SizedBox(width: 8),
-                Text(
-                  '면세 한도',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            Row(
-              children: [
-                Expanded(
-                  child: _buildDutyFreeItem(
-                      '🍷', '주류', _regulationData!.dutyFree.alcohol),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: _buildDutyFreeItem(
-                      '🚬', '담배', _regulationData!.dutyFree.tobacco),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: _buildDutyFreeItem(
-                      '🌸', '향수', _regulationData!.dutyFree.perfume),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            const _NoticeBox(
-              icon: Icons.info_rounded,
-              title: '면세 한도 안내',
-              bullets: [
-                '위 한도는 성인 1인 기준이며 국가별로 상이할 수 있습니다.',
-                '초과 시 관세가 부과될 수 있으니 주의하세요.',
-              ],
-              accent: Color(0xFF10B981),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildInfoCard(String title, String value) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          title,
-          style: const TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w500,
-          ),
-        ),
-        const SizedBox(height: 8),
-        Container(
-          width: double.infinity,
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: Theme.of(context).colorScheme.surfaceContainerHighest,
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Text(
-            value,
-            style: const TextStyle(
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildLiquidRestrictions() {
-    final data = _regulationData!.carryOn;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          '액체류 제한',
-          style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
-        ),
-        const SizedBox(height: 8),
-        _NoticeBox(
-          icon: Icons.warning_amber_rounded,
-          title: '액체류 규정',
-          badge: data.liquidLimit,
-          bullets: data.restrictions,
-        ),
-      ],
-    );
-  }
-
-  Widget _buildCheckedRestrictions() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          '주의사항',
-          style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
-        ),
-        const SizedBox(height: 8),
-        _NoticeBox(
-          icon: Icons.info_rounded,
-          title: '위탁 수하물 주의사항',
-          bullets: _regulationData!.checked.restrictions,
-          accent: const Color(0xFF3B82F6),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildDutyFreeItem(String emoji, String title, String limit) {
-    const green = Color(0xFF10B981);
+  Widget _buildStatusChip(String label, Color color) {
     return Container(
-      padding: const EdgeInsets.fromLTRB(14, 16, 14, 16),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
-        color: green.withOpacity(0.06),
-        border: Border.all(color: green.withOpacity(0.18)),
-        borderRadius: BorderRadius.circular(18),
+        color: color.withOpacity(0.08),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: color.withOpacity(0.35)),
       ),
-      child: Column(
-        children: [
-          Text(emoji, style: const TextStyle(fontSize: 22)),
-          const SizedBox(height: 10),
-          Text(
-            title,
-            style: const TextStyle(
-              fontWeight: FontWeight.w700,
-              color: green,
-              fontSize: 16,
-            ),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            limit,
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: 12,
-              height: 1.35,
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
-            ),
-          ),
-        ],
+      child: Text(
+        label,
+        style: TextStyle(
+          fontSize: 12,
+          fontWeight: FontWeight.w700,
+          color: color,
+        ),
       ),
     );
   }
 
-  /// 🔹 여기서는 더미 규정 데이터만 세팅 (Preview API 호출 없음)
+  // ---------------------------------------------------------------------------
+  // Preview API 호출
+  // ---------------------------------------------------------------------------
+
   Future<void> _searchRegulations() async {
-    if (!_canSearch) return;
+    if (_isPreviewLoading) return;
+
+    final tripProvider = context.read<TripProvider>();
+    final deviceProvider = context.read<DeviceProvider>();
+    final previewProvider = context.read<PreviewProvider>();
+
+    final currentTrip = tripProvider.currentTrip;
+    final deviceUuid = deviceProvider.deviceUuid;
+    final deviceToken = deviceProvider.deviceToken;
+
+    if (currentTrip == null || deviceUuid == null || deviceToken == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('여행/기기 정보가 없어 규정을 조회할 수 없어요.')),
+      );
+      return;
+    }
+
+    final label = _itemController.text.trim();
+    if (label.isEmpty ||
+        _selectedAirport == null ||
+        _selectedAirline == null ||
+        _selectedCabinClass == null) {
+      return;
+    }
 
     setState(() {
-      _isLoading = true;
+      _isPreviewLoading = true;
+      _preview = null;
     });
 
-    await Future.delayed(const Duration(milliseconds: 500));
+    try {
+      const fromAirport = 'ICN'; // 출발 공항은 일단 고정
+      final toAirport = _selectedAirport!.iataCode;
+      final airlineCode = _selectedAirline!.code;
+      final cabinClassCode = _selectedCabinClass!.code;
 
-    if (!mounted) return;
+      final reqId = DateTime.now().millisecondsSinceEpoch.toString();
 
-    setState(() {
-      _regulationData = RegulationData(
-        country: _selectedCountry!,
-        airport: _selectedAirport!,
-        airline: _selectedAirline!,
-        seatClass: _selectedSeatClass!,
-        carryOn: CarryOnData(
-          maxWeight: "10kg",
-          maxSize: "55cm × 40cm × 20cm",
-          liquidLimit: "100ml (총 1L)",
-          restrictions: [
-            "투명 지퍼백에 보관",
-            "개별 용기 100ml 이하",
-            "1인당 1개 지퍼백만 허용",
-          ],
+      final request = PreviewRequest(
+        label: label,
+        locale: 'ko-KR',
+        reqId: reqId,
+        itinerary: Itinerary(
+          from: fromAirport,
+          to: toAirport,
+          via: const [],
+          rescreening: false,
         ),
-        checked: CheckedData(
-          maxWeight: "23kg",
-          maxSize: "158cm (3변의 합)",
-          restrictions: [
-            "리튬배터리 금지",
-            "인화성 물질 금지",
-            "날카로운 물건 주의",
-          ],
-        ),
-        prohibited: [
-          "폭발물",
-          "인화성 액체",
-          "독성 물질",
-          "방사성 물질",
-          "부식성 물질",
-          "자성 물질",
-          "산화성 물질",
+        segments: [
+          Segment(
+            leg: '$fromAirport-$toAirport',
+            operating: airlineCode,
+            cabinClass: cabinClassCode,
+          ),
         ],
-        dutyFree: DutyFreeData(
-          alcohol: "1L (21도 이상 22도 미만) 또는 400ml (22도 이상)",
-          tobacco: "담배 200개비 또는 시가 50개비",
-          perfume: "60ml",
+        itemParams: ItemParams(
+          volumeMl: 0,
+          wh: 0,
+          count: 1,
+          abvPercent: 0,
+          weightKg: 0,
+          bladeLengthCm: 0,
+        ),
+        dutyFree: DutyFree(
+          isDf: false,
+          stebSealed: false,
         ),
       );
-      _isLoading = false;
-    });
+
+      await previewProvider.fetchPreview(request);
+
+      if (!mounted) return;
+
+      if (previewProvider.errorMessage != null ||
+          previewProvider.preview == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              '규정을 불러오지 못했어요: '
+                  '${previewProvider.errorMessage ?? '알 수 없는 오류'}',
+            ),
+          ),
+        );
+        return;
+      }
+
+      setState(() {
+        _preview = previewProvider.preview;
+      });
+    } finally {
+      if (!mounted) return;
+      setState(() {
+        _isPreviewLoading = false;
+      });
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Helper
+  // ---------------------------------------------------------------------------
+
+  Color _statusColor(String label) {
+    if (label.contains('금지') || label.contains('불가')) {
+      return Colors.red;
+    }
+    if (label.contains('허용') || label.contains('가능')) {
+      return Colors.green;
+    }
+    return Colors.orange;
   }
 }
 
-/// ===== 데이터 모델들 =====
-
-class RegulationData {
-  final String country;
-  final String airport;
-  final String airline;
-  final String seatClass;
-  final CarryOnData carryOn;
-  final CheckedData checked;
-  final List<String> prohibited;
-  final DutyFreeData dutyFree;
-
-  RegulationData({
-    required this.country,
-    required this.airport,
-    required this.airline,
-    required this.seatClass,
-    required this.carryOn,
-    required this.checked,
-    required this.prohibited,
-    required this.dutyFree,
-  });
-}
-
-class CarryOnData {
-  final String maxWeight;
-  final String maxSize;
-  final String liquidLimit;
-  final List<String> restrictions;
-
-  CarryOnData({
-    required this.maxWeight,
-    required this.maxSize,
-    required this.liquidLimit,
-    required this.restrictions,
-  });
-}
-
-class CheckedData {
-  final String maxWeight;
-  final String maxSize;
-  final List<String> restrictions;
-
-  CheckedData({
-    required this.maxWeight,
-    required this.maxSize,
-    required this.restrictions,
-  });
-}
-
-class DutyFreeData {
-  final String alcohol;
-  final String tobacco;
-  final String perfume;
-
-  DutyFreeData({
-    required this.alcohol,
-    required this.tobacco,
-    required this.perfume,
-  });
-}
+// 공통 안내 박스 ---------------------------------------------------------------
 
 class _NoticeBox extends StatelessWidget {
   final IconData icon;
   final String title;
   final List<String> bullets;
-  final String? badge; // 없으면 null
-  final Color? accent; // 없으면 브랜드 핑크 사용
+  final String? badge;
+  final Color? accent;
 
   const _NoticeBox({
     required this.icon,
@@ -808,7 +810,6 @@ class _NoticeBox extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // 상단 라인 (아이콘 + 제목 + 뱃지)
         Row(
           children: [
             Icon(icon, color: a, size: 18),
@@ -841,7 +842,6 @@ class _NoticeBox extends StatelessWidget {
           ],
         ),
         const SizedBox(height: 8),
-        // 불릿 리스트 (배경 박스 없이)
         ...bullets.map(
               (t) => Padding(
             padding: const EdgeInsets.only(bottom: 4),
