@@ -5,19 +5,15 @@ class SimpleHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
     return Padding(
       padding: const EdgeInsets.only(left: 16),
       child: Row(
         children: [
-          Container(
-            width: 36,
-            height: 36,
-            decoration: BoxDecoration(
-              color: cs.primary.withOpacity(0.12),
-              borderRadius: BorderRadius.circular(18),
-            ),
-            child: const Center(child: Text('🍒', style: TextStyle(fontSize: 18))),
+          // 좌측 상단 육각형 PNG 로고
+          Image.asset(
+            'assets/images/Cherry_Pick_LOGO.png', // ← PNG 경로
+            width: 32,
+            height: 32,
           ),
         ],
       ),
