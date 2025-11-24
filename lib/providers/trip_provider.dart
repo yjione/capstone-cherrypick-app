@@ -14,8 +14,11 @@ class TripProvider extends ChangeNotifier {
   String? _error;
 
   List<Trip> get trips => _trips;
+
   String? get currentTripId => _currentTripId;
+
   bool get isLoading => _isLoading;
+
   bool get hasLoadedOnce => _hasLoadedOnce; // ⭐ getter
   String? get error => _error;
 
@@ -113,12 +116,32 @@ class TripProvider extends ChangeNotifier {
     final start = item.startDate ?? '';
     final end = item.endDate ?? '';
 
+    // 🔹 제목이 없으면 공항 정보로 이름 만들어주기
+    String name = item.title;
+    if (name.isEmpty) {
+      final from = item.fromAirport ?? '';
+      final to = item.toAirport ?? '';
+      if (from.isNotEmpty || to.isNotEmpty) {
+        name = '$from → $to';
+      } else {
+        name = '새 여행';
+      }
+    }
+
+    // 🔹 도착 공항이 없으면 출발 공항, 그것도 없으면 기본값
+    final destination = item.toAirport ??
+        item.fromAirport ??
+        '여행';
+
+    // 🔹 기간(몇 박 몇 일) 계산 – 날짜 없으면 빈 문자열
     String duration = '';
     if (start.isNotEmpty && end.isNotEmpty) {
       try {
         final s = DateTime.parse(start);
         final e = DateTime.parse(end);
-        final days = e.difference(s).inDays;
+        final days = e
+            .difference(s)
+            .inDays;
         if (days <= 0) {
           duration = '당일치기';
         } else {
@@ -131,8 +154,8 @@ class TripProvider extends ChangeNotifier {
 
     return Trip(
       id: item.tripId.toString(),
-      name: item.title,
-      destination: item.toAirport ?? '',
+      name: name,
+      destination: destination,
       startDate: start,
       duration: duration,
     );
