@@ -10,13 +10,16 @@ class TripProvider extends ChangeNotifier {
   String? _currentTripId;
 
   bool _isLoading = false;
-  bool _hasLoadedOnce = false;          // ⭐ 서버에서 한 번이라도 불러왔는지
+  bool _hasLoadedOnce = false; // ⭐ 서버에서 한 번이라도 불러왔는지
   String? _error;
 
   List<Trip> get trips => _trips;
+
   String? get currentTripId => _currentTripId;
+
   bool get isLoading => _isLoading;
-  bool get hasLoadedOnce => _hasLoadedOnce;   // ⭐ getter
+
+  bool get hasLoadedOnce => _hasLoadedOnce; // ⭐ getter
   String? get error => _error;
 
   Trip? get currentTrip {
@@ -41,13 +44,36 @@ class TripProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  void deleteTrip(String tripId) {
-    if (_trips.length > 1) {
-      _trips.removeWhere((trip) => trip.id == tripId);
-      if (_currentTripId == tripId) {
-        _currentTripId = _trips.first.id;
+  /// 서버 + 로컬에서 여행 삭제
+  Future<void> deleteTrip({
+    required String deviceUuid,
+    required String deviceToken,
+    required String tripId,
+    bool purge = false,
+  }) async {
+    try {
+      // 1) 서버에 삭제 요청
+      await _api.deleteTrip(
+        deviceUuid: deviceUuid,
+        deviceToken: deviceToken,
+        tripId: int.parse(tripId),
+        purge: purge,
+      );
+
+      // 2) 삭제 성공하면 로컬 목록에서도 제거
+      if (_trips.length > 1) {
+        _trips.removeWhere((trip) => trip.id == tripId);
+
+        if (_currentTripId == tripId) {
+          _currentTripId = _trips.isNotEmpty ? _trips.first.id : null;
+        }
+
+        notifyListeners();
       }
+    } catch (e) {
+      _error = e.toString();
       notifyListeners();
+      rethrow;
     }
   }
 
@@ -81,7 +107,7 @@ class TripProvider extends ChangeNotifier {
       _error = e.toString();
     } finally {
       _isLoading = false;
-      _hasLoadedOnce = true;     // ⭐ 서버 호출은 한 번 끝났다!
+      _hasLoadedOnce = true; // ⭐ 서버 호출은 한 번 끝났다!
       notifyListeners();
     }
   }
@@ -90,12 +116,32 @@ class TripProvider extends ChangeNotifier {
     final start = item.startDate ?? '';
     final end = item.endDate ?? '';
 
+    // 🔹 제목이 없으면 공항 정보로 이름 만들어주기
+    String name = item.title;
+    if (name.isEmpty) {
+      final from = item.fromAirport ?? '';
+      final to = item.toAirport ?? '';
+      if (from.isNotEmpty || to.isNotEmpty) {
+        name = '$from → $to';
+      } else {
+        name = '새 여행';
+      }
+    }
+
+    // 🔹 도착 공항이 없으면 출발 공항, 그것도 없으면 기본값
+    final destination = item.toAirport ??
+        item.fromAirport ??
+        '여행';
+
+    // 🔹 기간(몇 박 몇 일) 계산 – 날짜 없으면 빈 문자열
     String duration = '';
     if (start.isNotEmpty && end.isNotEmpty) {
       try {
         final s = DateTime.parse(start);
         final e = DateTime.parse(end);
-        final days = e.difference(s).inDays;
+        final days = e
+            .difference(s)
+            .inDays;
         if (days <= 0) {
           duration = '당일치기';
         } else {
@@ -108,8 +154,8 @@ class TripProvider extends ChangeNotifier {
 
     return Trip(
       id: item.tripId.toString(),
-      name: item.title,
-      destination: item.toAirport ?? '',
+      name: name,
+      destination: destination,
       startDate: start,
       duration: duration,
     );

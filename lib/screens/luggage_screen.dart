@@ -9,6 +9,7 @@ import '../providers/packing_provider.dart';
 import '../providers/trip_provider.dart';
 import '../providers/device_provider.dart';
 import '../models/trip.dart';
+import '../widgets/cherry_app_bar.dart';   // ✅ 공용 AppBar
 
 class LuggageScreen extends StatefulWidget {
   const LuggageScreen({super.key});
@@ -70,7 +71,7 @@ class _LuggageScreenState extends State<LuggageScreen> {
     final List<Trip> trips = tripProvider.trips;
     final currentTrip = tripProvider.currentTrip;
     final isLoadingTrips = tripProvider.isLoading;
-    final hasLoadedTrips = tripProvider.hasLoadedOnce;   // ⭐
+    final hasLoadedTrips = tripProvider.hasLoadedOnce; // ⭐
 
     final scheme = Theme.of(context).colorScheme;
     final textColor = scheme.onSurface;
@@ -79,10 +80,7 @@ class _LuggageScreenState extends State<LuggageScreen> {
     if (isLoadingTrips) {
       return Scaffold(
         backgroundColor: scheme.surface,
-        appBar: AppBar(
-          title: const Text('cherry pick'),
-          centerTitle: true,
-        ),
+        appBar: const CherryAppBar(),      // ✅ 중앙 로고 텍스트
         body: const Center(
           child: CircularProgressIndicator(),
         ),
@@ -91,7 +89,8 @@ class _LuggageScreenState extends State<LuggageScreen> {
     }
 
     /// 1) 서버에서 한 번이라도 불러봤고, 등록된 여행이 하나도 없음 → initial-trip 으로 보내기
-    if (hasLoadedTrips && trips.isEmpty) {             // ⭐ 조건 수정
+    if (hasLoadedTrips && trips.isEmpty) {
+      // ⭐ 조건 수정
       WidgetsBinding.instance.addPostFrameCallback((_) {
         context.go('/initial-trip');
       });
@@ -108,7 +107,7 @@ class _LuggageScreenState extends State<LuggageScreen> {
       return const SizedBox.shrink();
     }
 
-    // ---------- 아래는 기존 코드 그대로 ----------
+    // ---------- 아래는 기존 코드 그대로 (상단 타이틀만 이미지로 교체) ----------
     PreferredSizeWidget _topBar() {
       final scheme = Theme.of(context).colorScheme;
       final textColor = scheme.onSurface;
@@ -127,12 +126,11 @@ class _LuggageScreenState extends State<LuggageScreen> {
                   child: Stack(
                     alignment: Alignment.center,
                     children: [
-                      const Text(
-                        'cherry pick',
-                        style: TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.w700,
-                        ),
+                      // 🔻 가운데 텍스트 대신 PNG 로고 텍스트
+                      Image.asset(
+                        'assets/images/Cherry_Pick_Text.png',
+                        height: 24,          // 필요하면 26~28로 키워봐도 됨
+                        fit: BoxFit.contain,
                       ),
                       Align(
                         alignment: Alignment.centerLeft,
@@ -242,7 +240,7 @@ class _LuggageScreenState extends State<LuggageScreen> {
     );
   }
 
-// 🔻 여행 선택/추가/삭제 바텀시트
+  // 🔻 여행 선택/추가/삭제 바텀시트
   void _showTripSelector(BuildContext context) {
     showModalBottomSheet(
       context: context,
@@ -339,13 +337,19 @@ class _LuggageScreenState extends State<LuggageScreen> {
     );
   }
 
-  // 🔻 여행 삭제 확인 다이얼로그 (서버 연동은 아직 없이 로컬만)
+  // 🔻 여행 삭제 확인 다이얼로그 + 서버 연동
   Future<void> _confirmDeleteTrip(
       BuildContext context,
       Trip trip,
       TripProvider tripProvider,
       ) async {
-    final canDelete = tripProvider.trips.length > 1;
+    final device = context.read<DeviceProvider>();
+    final packingProvider = context.read<PackingProvider>();
+
+    final canDeleteLocally = tripProvider.trips.length > 1;
+    final hasDeviceHeaders =
+        device.deviceUuid != null && device.deviceToken != null;
+    final canDelete = canDeleteLocally && hasDeviceHeaders;
 
     await showDialog(
       context: context,
@@ -353,9 +357,11 @@ class _LuggageScreenState extends State<LuggageScreen> {
         return AlertDialog(
           title: const Text('여행 삭제'),
           content: Text(
-            canDelete
-                ? '"${trip.name}" 여행을 삭제할까요?'
-                : '마지막 남은 여행은 삭제할 수 없어요.\n새 여행을 추가한 후에 삭제해 주세요.',
+            !canDeleteLocally
+                ? '마지막 남은 여행은 삭제할 수 없어요.\n새 여행을 추가한 후에 삭제해 주세요.'
+                : !hasDeviceHeaders
+                ? '기기 정보가 없어 서버와 통신할 수 없어요.\n앱을 다시 실행해 주세요.'
+                : '"${trip.name}" 여행을 삭제할까요?',
           ),
           actions: [
             TextButton(
@@ -364,9 +370,39 @@ class _LuggageScreenState extends State<LuggageScreen> {
             ),
             if (canDelete)
               TextButton(
-                onPressed: () {
-                  tripProvider.deleteTrip(trip.id);
+                onPressed: () async {
+                  // 다이얼로그 먼저 닫기
                   Navigator.pop(context);
+
+                  try {
+                    // 1) 서버 + 로컬에서 여행 삭제
+                    await tripProvider.deleteTrip(
+                      deviceUuid: device.deviceUuid!,
+                      deviceToken: device.deviceToken!,
+                      tripId: trip.id,
+                      purge: true,
+                    );
+
+                    // 2) 새 currentTrip 기준으로 짐 목록 다시 로딩
+                    final newCurrentTrip = tripProvider.currentTrip;
+                    if (newCurrentTrip != null) {
+                      await packingProvider.loadBagsFromServer(
+                        deviceUuid: device.deviceUuid!,
+                        deviceToken: device.deviceToken!,
+                        tripId: int.parse(newCurrentTrip.id),
+                      );
+                    } else {
+                      if (!context.mounted) return;
+                      context.go('/initial-trip');
+                    }
+                  } catch (e) {
+                    if (!context.mounted) return;
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('여행 삭제에 실패했어요. 잠시 후 다시 시도해 주세요.'),
+                      ),
+                    );
+                  }
                 },
                 style: TextButton.styleFrom(
                   foregroundColor: Colors.red,

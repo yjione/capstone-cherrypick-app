@@ -5,7 +5,7 @@ import 'package:http/http.dart' as http;
 import '../models/device_register.dart';
 
 class DeviceApiService {
-  // TODO: 네 ngrok / 서버 base URL 로 바꿔줘
+  // 로컬 서버 기준
   static const String _baseUrl =
       'https://unmatted-cecilia-criticizingly.ngrok-free.dev';
 
@@ -18,15 +18,17 @@ class DeviceApiService {
       headers: {
         'Content-Type': 'application/json',
         'Accept': 'application/json',
-        // Swagger에 Accept-Language 헤더 있었으니까 같이 보내기
         'Accept-Language': request.locale,
+        // 웹에서만 쓰는 헤더는 굳이 안 보내도 됨 (ngrok-skip-browser-warning 같은 거)
       },
       body: jsonEncode(request.toJson()),
     );
 
-    if (response.statusCode != 200) {
+    // ✅ 200, 201 둘 다 성공으로 인정
+    if (response.statusCode != 200 && response.statusCode != 201) {
       throw Exception(
-          'Device register failed: ${response.statusCode} ${response.body}');
+        'Device register failed: ${response.statusCode} ${response.body}',
+      );
     }
 
     final Map<String, dynamic> body =

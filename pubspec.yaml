@@ -53,3 +53,8 @@ flutter:
 
   assets:
     - assets/images/hairspray.png
+    - assets/images/cherry_hex_logo.png
+    - assets/images/Cherry_Pick_LOGO.svg
+    - assets/images/Cherry_Pick_Text.svg
+    - assets/images/Cherry_Pick_Text.png
+    - assets/images/Cherry_Pick_LOGO.png
