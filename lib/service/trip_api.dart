@@ -150,6 +150,42 @@ class TripApiService {
       throw Exception('Delete trip failed: ${resp.statusCode} ${resp.body}');
     }
   }
+
+  /// ---------------- Update Trip Duration ----------------
+  ///
+  /// PATCH /v1/trips/{trip_id}/duration
+  Future<TripDurationInfo> updateTripDuration({
+    required String deviceUuid,
+    required String deviceToken,
+    required int tripId,
+    required String startDate, // "YYYY-MM-DD"
+    required String endDate,   // "YYYY-MM-DD"
+  }) async {
+    final url = Uri.parse('$_baseUrl/v1/trips/$tripId/duration');
+
+    final resp = await http.patch(
+      url,
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        'X-Device-UUID': deviceUuid,
+        'X-Device-Token': deviceToken,
+        'ngrok-skip-browser-warning': 'true',
+      },
+      body: jsonEncode({
+        'start_date': startDate,
+        'end_date': endDate,
+      }),
+    );
+
+    if (resp.statusCode != 200) {
+      throw Exception(
+          'Update duration failed: ${resp.statusCode} ${resp.body}');
+    }
+
+    final json = jsonDecode(resp.body) as Map<String, dynamic>;
+    return TripDurationInfo.fromJson(json);
+  }
 }
 
 /// ================== 모델들 ==================
@@ -324,6 +360,30 @@ class TripListResponse {
           .toList(),
       nextOffset: json['next_offset'] as int? ?? 0,
       hasMore: json['has_more'] as bool? ?? false,
+    );
+  }
+}
+
+/// PATCH /duration 응답용 모델
+class TripDurationInfo {
+  final int tripId;
+  final String startDate;
+  final String endDate;
+  final bool needsDuration;
+
+  TripDurationInfo({
+    required this.tripId,
+    required this.startDate,
+    required this.endDate,
+    required this.needsDuration,
+  });
+
+  factory TripDurationInfo.fromJson(Map<String, dynamic> json) {
+    return TripDurationInfo(
+      tripId: json['trip_id'] as int,
+      startDate: json['start_date'] as String? ?? '',
+      endDate: json['end_date'] as String? ?? '',
+      needsDuration: json['needs_duration'] as bool? ?? false,
     );
   }
 }
