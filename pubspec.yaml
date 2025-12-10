@@ -47,6 +47,7 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^3.0.0
+  flutter_native_splash: ^2.4.1
 
 flutter:
   uses-material-design: true
@@ -58,3 +59,19 @@ flutter:
     - assets/images/Cherry_Pick_Text.svg
     - assets/images/Cherry_Pick_Text.png
     - assets/images/Cherry_Pick_LOGO.png
+    - assets/images/splash_logo.png
+    - assets/images/splash_logo_android.png
+    - assets/images/onboarding_luggage.png
+    - assets/images/onboarding_scan.png
+    - assets/images/onboarding_rule.png
+    - assets/images/onboarding_recommendation.png
+
+flutter_native_splash:
+  color: "#FFFFFF"                # 배경색
+  image: assets/images/splash_logo.png  # 체리 로고
+  android: true
+  ios: true
+
+  android_12:
+    color: "#FFFFFF"
+    image: assets/images/splash_logo_android.png
