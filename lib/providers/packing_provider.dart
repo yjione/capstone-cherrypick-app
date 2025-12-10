@@ -19,7 +19,6 @@ class PackingProvider extends ChangeNotifier {
   String get selectedBag => _selectedBag;
   String get searchQuery => _searchQuery;
 
-  /// ✅ 서버에서 가방 + 아이템 목록 한 번에 불러오기
   Future<void> loadBagsFromServer({
     required int tripId,
     required String deviceUuid,
@@ -53,13 +52,12 @@ class PackingProvider extends ChangeNotifier {
     }
   }
 
-  /// ✅ 서버에 가방 생성 + 로컬 리스트에 추가
   Future<void> createBagOnServer({
     required int tripId,
     required String deviceUuid,
     required String deviceToken,
     required String name,
-    required String bagType, // 'carry_on' | 'checked' | 'custom'
+    required String bagType,
   }) async {
     try {
       final newBag = await _bagApi.createBag(
@@ -71,7 +69,6 @@ class PackingProvider extends ChangeNotifier {
       );
       _bags.add(newBag);
 
-      // 새로 추가한 가방 선택
       _selectedBag = newBag.id;
       notifyListeners();
     } catch (e) {
@@ -80,7 +77,6 @@ class PackingProvider extends ChangeNotifier {
     }
   }
 
-  /// ✅ 서버에서 가방 이름 수정 + 로컬 이름도 업데이트
   Future<void> renameBagOnServer({
     required String deviceUuid,
     required String deviceToken,
@@ -107,7 +103,6 @@ class PackingProvider extends ChangeNotifier {
     }
   }
 
-  /// ✅ 서버에서 가방 삭제 + 로컬 목록에서도 제거
   Future<void> deleteBagOnServer({
     required String deviceUuid,
     required String deviceToken,
@@ -120,10 +115,8 @@ class PackingProvider extends ChangeNotifier {
         bagId: int.parse(bagId),
       );
 
-      // 로컬 리스트에서 제거
       _bags.removeWhere((b) => b.id == bagId);
 
-      // 선택된 가방이 삭제됐으면 다른 가방 선택 or 비우기
       if (_selectedBag == bagId) {
         _selectedBag = _bags.isNotEmpty ? _bags.first.id : "";
       }
@@ -145,7 +138,6 @@ class PackingProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// ⏳ 지금은 로컬 상태만 바꾸고, 나중에 PATCH /v1/bag-items/{item_id} 붙이면 됨
   void toggleItemPacked(String bagId, String itemId) {
     final bagIndex = _bags.indexWhere((b) => b.id == bagId);
     if (bagIndex != -1) {
@@ -163,7 +155,6 @@ class PackingProvider extends ChangeNotifier {
     }
   }
 
-  /// (지금은 로컬 전용) 아이템 추가
   void addItem(item.PackingItem newItem) {
     final bagIndex = _bags.indexWhere((b) => b.id == newItem.bagId);
     if (bagIndex != -1) {
@@ -175,7 +166,6 @@ class PackingProvider extends ChangeNotifier {
     }
   }
 
-  /// (지금은 로컬 전용) 아이템 삭제
   void removeItem(String bagId, String itemId) {
     final bagIndex = _bags.indexWhere((b) => b.id == bagId);
     if (bagIndex != -1) {
@@ -186,7 +176,6 @@ class PackingProvider extends ChangeNotifier {
     }
   }
 
-  /// (fallback 용) 서버 안 붙고 로컬에서만 가방 추가할 때 사용
   void addBag(bag.Bag newBag) {
     _bags.add(newBag);
     if (_selectedBag.isEmpty) {
