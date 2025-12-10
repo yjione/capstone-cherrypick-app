@@ -9,9 +9,6 @@ import '../providers/packing_provider.dart';
 
 class ItemPreviewScreen extends StatefulWidget {
   final PreviewResponse data;
-
-  /// true : "아이템 리스트에 추가 / 취소" 버튼을 보여주고, 저장까지 담당
-  /// false: 규정만 보여주는 읽기 전용 화면
   final bool allowSave;
 
   /// allowSave=true 일 때만 쓰는 값들
@@ -20,7 +17,7 @@ class ItemPreviewScreen extends StatefulWidget {
   final String? deviceUuid;
   final String? deviceToken;
 
-  /// 사용자가 다이얼로그에서 직접 입력한 이름 (예: "옷")
+  /// 사용자가 다이얼로그에서 직접 입력한 이름
   final String? userLabel;
 
   const ItemPreviewScreen({
@@ -62,13 +59,11 @@ class _ItemPreviewScreenState extends State<ItemPreviewScreen> {
     final tips = [...widget.data.aiTips]
       ..sort((a, b) => b.relevance.compareTo(a.relevance));
 
-    // ✅ 화면에 보여줄 이름: 내가 입력한 userLabel > 엔진이 준 title
     final displayTitle =
     (widget.userLabel != null && widget.userLabel!.isNotEmpty)
         ? widget.userLabel!
         : narration.title;
 
-    // ✅ 칩 텍스트들: userLabel → resolved.label → canonical (중복 제거)
     final String? userLabel = widget.userLabel?.trim();
     final String resolvedLabel = widget.data.resolved.label.trim();
     final String canonical = widget.data.resolved.canonical.trim();
@@ -88,11 +83,10 @@ class _ItemPreviewScreenState extends State<ItemPreviewScreen> {
     addChip(canonical);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('아이템 규정 미리보기')),
+      appBar: AppBar(title: const Text('아이템 규정')),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          // A. 헤더 (이미지 제거 + 칩 중복 제거 버전)
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -114,7 +108,6 @@ class _ItemPreviewScreenState extends State<ItemPreviewScreen> {
           ),
           const SizedBox(height: 16),
 
-          // B. 판정 카드 2개
           Row(
             children: [
               Expanded(
@@ -138,7 +131,6 @@ class _ItemPreviewScreenState extends State<ItemPreviewScreen> {
           ),
           const SizedBox(height: 16),
 
-          // C. 배지 영역
           if (narration.badges.isNotEmpty) ...[
             Wrap(
               spacing: 8,
@@ -166,7 +158,6 @@ class _ItemPreviewScreenState extends State<ItemPreviewScreen> {
             const SizedBox(height: 16),
           ],
 
-          // D. bullets
           if (narration.bullets.isNotEmpty) ...[
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -199,7 +190,6 @@ class _ItemPreviewScreenState extends State<ItemPreviewScreen> {
             const SizedBox(height: 16),
           ],
 
-          // E. AI Tips
           if (tips.isNotEmpty) ...[
             const Text(
               '팁',
@@ -228,7 +218,6 @@ class _ItemPreviewScreenState extends State<ItemPreviewScreen> {
             const SizedBox(height: 16),
           ],
 
-          // F. 출처 / 풋노트
           if (narration.sources.isNotEmpty || narration.footnote.isNotEmpty)
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -258,7 +247,6 @@ class _ItemPreviewScreenState extends State<ItemPreviewScreen> {
         ],
       ),
 
-      // 하단 버튼 영역
       bottomNavigationBar: widget.allowSave
           ? SafeArea(
         child: Padding(
@@ -324,7 +312,6 @@ class _ItemPreviewScreenState extends State<ItemPreviewScreen> {
         userLabel: widget.userLabel,
       );
 
-      // 저장 후 가방/아이템 다시 로딩해서 리스트에도 반영
       final packingProvider = context.read<PackingProvider>();
       await packingProvider.loadBagsFromServer(
         tripId: widget.tripId!,
