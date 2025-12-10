@@ -19,6 +19,8 @@ import 'screens/checklist_screen.dart';
 import 'screens/recommendations_screen.dart';
 import 'screens/item_preview_screen.dart';
 import 'screens/initial_trip_screen.dart';
+import 'screens/onboarding_screen.dart';
+//import 'screens/splash_screen.dart';
 
 import 'theme/app_theme.dart';
 import 'models/item_preview_sample.dart';
@@ -58,7 +60,7 @@ class CherryPickApp extends StatelessWidget {
             api: ReferenceApiService(),
           ),
         ),
-        // ✅ 이미 초기화된 DeviceProvider 주입
+        // 이미 초기화된 DeviceProvider 주입
         ChangeNotifierProvider<DeviceProvider>.value(
           value: deviceProvider,
         ),
@@ -76,8 +78,16 @@ class CherryPickApp extends StatelessWidget {
 }
 
 final GoRouter _router = GoRouter(
-  initialLocation: '/luggage',
+  initialLocation: '/onboarding',
   routes: [
+    // GoRoute(
+    //   path: '/splash',
+    //   builder: (context, state) => const SplashScreen(),
+    // ),
+    GoRoute(
+      path: '/onboarding',
+      builder: (context, state) => const OnboardingScreen(),
+    ),
     GoRoute(
       path: '/initial-trip',
       builder: (context, state) => const InitialTripScreen(),
