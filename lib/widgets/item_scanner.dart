@@ -8,7 +8,7 @@ import 'package:provider/provider.dart';
 
 import '../providers/trip_provider.dart';
 
-// 🔹 Preview API 관련
+// Preview API 관련
 import '../providers/preview_provider.dart';
 import '../models/preview_request.dart';
 import '../screens/item_preview_screen.dart';
@@ -25,7 +25,7 @@ class _ItemScannerState extends State<ItemScanner> {
   List<CameraDescription>? _cameras;
   bool _isCameraActive = false;
   bool _isScanning = false;
-  bool _isPreviewLoading = false; // 🔹 Preview API 로딩 상태
+  bool _isPreviewLoading = false; // Preview API 로딩 상태
 
   XFile? _selectedImage;
   ScanResult? _scanResult;
@@ -349,7 +349,7 @@ class _ItemScannerState extends State<ItemScanner> {
           ],
         ),
 
-        // 🔹 Preview API 로딩 상태 표시
+        // Preview API 로딩 상태 표시
         if (_isPreviewLoading) ...[
           const SizedBox(height: 8),
           Row(
@@ -692,7 +692,7 @@ class _ItemScannerState extends State<ItemScanner> {
   }
 
   // =========================================================
-  // 🔹 여기부터 Preview API 연동 부분
+  // 여기부터 Preview API 연동 부분
   // =========================================================
 
   Future<void> _openPreviewForScanResult() async {
@@ -715,7 +715,7 @@ class _ItemScannerState extends State<ItemScanner> {
     try {
       final previewProvider = context.read<PreviewProvider>();
 
-      // 🔹 목적지 공항 코드 추출 (Trip.destination에서 괄호 안 코드 뽑기 시도)
+      // 목적지 공항 코드 추출 (Trip.destination에서 괄호 안 코드 뽑기 시도)
       // 예: "일본 나리타(NRT)" → "NRT"
       String extractAirportCode(String destination) {
         final start = destination.indexOf('(');
@@ -737,13 +737,13 @@ class _ItemScannerState extends State<ItemScanner> {
         return 'NRT';
       }
 
-      // 🔹 좌석 등급/항공사 정보는 아직 Trip에 없으므로 임시값 사용
+      // 좌석 등급/항공사 정보는 아직 Trip에 없으므로 임시값 사용
       const fromAirport = 'ICN';
       final toAirport = extractAirportCode(currentTrip.destination);
       const airlineCode = 'KE'; // TODO: Trip에 항공사 필드 추가 후 교체
       const cabinClass = 'economy'; // TODO: Trip에 좌석 등급 필드 추가 후 교체
 
-      // 🔹 아이템 정보도 아직 구조화 안되어 있으니 대략적인 값 사용
+      // 아이템 정보도 아직 구조화 안되어 있으니 대략적인 값 사용
       final request = PreviewRequest(
         label: _scanResult!.item, // 스캔된 아이템 이름
         locale: 'ko-KR',
