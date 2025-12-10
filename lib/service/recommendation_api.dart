@@ -150,13 +150,10 @@ class RecommendationApiService {
 
   // =========================================================
   // ====== FX (환율) 관련 API ======
-  // 여기부터가 새로 추가된 부분이야.
-  // swagger 스펙에 맞게 base/quote, body 필드명은
-  // 필요하면 조금만 수정해서 쓰면 돼.
   // =========================================================
 
   /// FX-1) 현재 환율 조회: GET /v1/fx/quote
-  /// 예) base=KRW, quote=USD
+  /// swagger 기준: query = base, symbol
   Future<Map<String, dynamic>> getFxQuote({
     required String deviceUuid,
     required String deviceToken,
@@ -164,7 +161,7 @@ class RecommendationApiService {
     required String quote,
   }) async {
     final url = Uri.parse(
-      '$baseUrl/v1/fx/quote?base=$base&quote=$quote',
+      '$baseUrl/v1/fx/quote?base=$base&symbol=$quote',
     );
 
     final resp = await http.get(
@@ -182,12 +179,12 @@ class RecommendationApiService {
   }
 
   /// FX-2) 금액 변환: POST /v1/fx/convert
-  /// 예) from=KRW, to=USD, amount=10000
+  /// swagger 스펙: { "amount": 1, "base": "KRW", "symbol": "USD" }
   Future<Map<String, dynamic>> convertFx({
     required String deviceUuid,
     required String deviceToken,
-    required String from,
-    required String to,
+    required String from, // base 통화
+    required String to,   // symbol(목적 통화)
     required double amount,
   }) async {
     final url = Uri.parse('$baseUrl/v1/fx/convert');
@@ -196,9 +193,9 @@ class RecommendationApiService {
       url,
       headers: _headers(deviceUuid: deviceUuid, deviceToken: deviceToken),
       body: jsonEncode({
-        'from': from,
-        'to': to,
         'amount': amount,
+        'base': from,
+        'symbol': to,
       }),
     );
 
@@ -212,7 +209,6 @@ class RecommendationApiService {
   }
 
   /// FX-3) 특정 날짜 환율 조회: GET /v1/fx/quote/date
-  /// 예) /v1/fx/quote/date?base=KRW&quote=USD&date=2025-11-26
   Future<Map<String, dynamic>> getFxQuoteOnDate({
     required String deviceUuid,
     required String deviceToken,
@@ -221,7 +217,7 @@ class RecommendationApiService {
     required String date, // YYYY-MM-DD
   }) async {
     final url = Uri.parse(
-      '$baseUrl/v1/fx/quote/date?base=$base&quote=$quote&date=$date',
+      '$baseUrl/v1/fx/quote/date?base=$base&symbol=$quote&date=$date',
     );
 
     final resp = await http.get(
@@ -253,9 +249,9 @@ class RecommendationApiService {
       url,
       headers: _headers(deviceUuid: deviceUuid, deviceToken: deviceToken),
       body: jsonEncode({
-        'from': from,
-        'to': to,
         'amount': amount,
+        'base': from,
+        'symbol': to,
         'date': date,
       }),
     );
@@ -288,12 +284,9 @@ class RecommendationApiService {
     }
 
     final json = jsonDecode(resp.body);
-    // 스키마에 따라 리스트/맵일 수 있어서 일단 dynamic 리스트로 리턴
-    if (json is List) {
-      return json;
-    }
-    if (json is Map && json['currencies'] is List) {
-      return json['currencies'] as List<dynamic>;
+    // 스펙 예시: { "currencies": { "USD": "United States Dollar", ... } }
+    if (json is Map && json['currencies'] is Map) {
+      return (json['currencies'] as Map).entries.toList();
     }
     return [];
   }
