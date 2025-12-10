@@ -12,7 +12,7 @@ class PreviewApiService {
 
   Future<PreviewResponse> fetchPreview(PreviewRequest request) async {
     // TODO: 실제 엔드포인트로 수정
-    final uri = Uri.parse('$baseUrl/v1/items/preview'); // 예: https://api.xxx.com/preview
+    final uri = Uri.parse('$baseUrl/v1/items/preview');
 
     final response = await http.post(
       uri,

@@ -17,7 +17,7 @@ class PackingManager extends StatelessWidget {
         final bags = packingProvider.bags;
         final isLoading = packingProvider.isLoading;
 
-        // 🔄 서버에서 가방/아이템 로딩 중 + 아직 데이터 없음 → 로딩 스피너
+        // 서버에서 가방/아이템 로딩 중 + 아직 데이터 없음 → 로딩 스피너
         if (isLoading && bags.isEmpty) {
           return const Center(child: CircularProgressIndicator());
         }
@@ -55,7 +55,7 @@ class PackingManager extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // 🔎 본문 검색창 표시 여부 (상단 AppBar에서 이미 쓰면 false로 숨김)
+              // 본문 검색창 표시 여부 (상단 AppBar에서 이미 쓰면 false로 숨김)
               if (showSearch) ...[
                 const _SearchBar(),
                 const SizedBox(height: 24),
@@ -80,7 +80,6 @@ class _SearchBar extends StatelessWidget {
     final scheme = Theme.of(context).colorScheme;
     final textColor = scheme.onSurface;
 
-    // 가방 카드와 어울리는 중립 테두리 컬러
     final neutralBorder = scheme.outline.withOpacity(0.6);
     final neutralBorderFocused = scheme.outline;
 
@@ -107,7 +106,7 @@ class _SearchBar extends StatelessWidget {
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
               borderSide:
-              BorderSide(color: neutralBorderFocused, width: 1), // ← 핑크 X
+              BorderSide(color: neutralBorderFocused, width: 1),
             ),
           ),
           cursorColor: textColor.withOpacity(0.8),
@@ -130,7 +129,7 @@ class _BagOverview extends StatelessWidget {
           height: 140,
           child: ListView.builder(
             scrollDirection: Axis.horizontal,
-            itemCount: bags.length + 1, // +1 = 가방 추가 카드
+            itemCount: bags.length + 1,
             itemBuilder: (context, index) {
               if (index == bags.length) {
                 return const _AddBagCard();

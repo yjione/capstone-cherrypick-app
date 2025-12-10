@@ -1,7 +1,7 @@
 // lib/screens/checklist_screen.dart
 import 'package:flutter/material.dart';
 
-import '../widgets/cherry_app_bar.dart';     // ✅ 새 AppBar 위젯
+import '../widgets/cherry_app_bar.dart';
 import '../widgets/bottom_navigation.dart';
 import '../widgets/regulation_checker.dart';
 
@@ -14,7 +14,7 @@ class ChecklistScreen extends StatelessWidget {
 
     return Scaffold(
       backgroundColor: cs.surface,
-      appBar: const CherryAppBar(),          // ✅ 공통 AppBar 사용
+      appBar: const CherryAppBar(),
       body: const RegulationChecker(),
       bottomNavigationBar: const BottomNavigation(currentIndex: 2),
     );

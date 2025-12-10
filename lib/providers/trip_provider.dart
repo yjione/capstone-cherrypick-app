@@ -10,13 +10,13 @@ class TripProvider extends ChangeNotifier {
   String? _currentTripId;
 
   bool _isLoading = false;
-  bool _hasLoadedOnce = false; // ⭐ 서버에서 한 번이라도 불러왔는지
+  bool _hasLoadedOnce = false; // 서버에서 한 번이라도 불러왔는지
   String? _error;
 
   List<Trip> get trips => _trips;
   String? get currentTripId => _currentTripId;
   bool get isLoading => _isLoading;
-  bool get hasLoadedOnce => _hasLoadedOnce; // ⭐ getter
+  bool get hasLoadedOnce => _hasLoadedOnce;
   String? get error => _error;
 
   Trip? get currentTrip {
@@ -41,7 +41,6 @@ class TripProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// 서버 + 로컬에서 여행 삭제
   Future<void> deleteTrip({
     required String deviceUuid,
     required String deviceToken,
@@ -49,7 +48,6 @@ class TripProvider extends ChangeNotifier {
     bool purge = false,
   }) async {
     try {
-      // 1) 서버에 삭제 요청
       await _api.deleteTrip(
         deviceUuid: deviceUuid,
         deviceToken: deviceToken,
@@ -57,7 +55,6 @@ class TripProvider extends ChangeNotifier {
         purge: purge,
       );
 
-      // 2) 삭제 성공하면 로컬 목록에서도 제거
       if (_trips.length > 1) {
         _trips.removeWhere((trip) => trip.id == tripId);
 
@@ -74,7 +71,6 @@ class TripProvider extends ChangeNotifier {
     }
   }
 
-  /// --------- 서버에서 Trip 리스트 불러오기 ---------
   Future<void> fetchTripsFromServer({
     required String deviceUuid,
     required String deviceToken,
@@ -104,7 +100,7 @@ class TripProvider extends ChangeNotifier {
       _error = e.toString();
     } finally {
       _isLoading = false;
-      _hasLoadedOnce = true; // ⭐ 서버 호출은 한 번 끝났다!
+      _hasLoadedOnce = true;
       notifyListeners();
     }
   }
@@ -123,11 +119,6 @@ class TripProvider extends ChangeNotifier {
     );
   }
 
-  /// --------- duration PATCH + 로컬 업데이트 ---------
-  ///
-  /// 추천 페이지에서 기간을 처음 입력하는 경우:
-  /// 1) 이 메서드로 서버에 start/end 저장
-  /// 2) 로컬 Trip 모델에도 반영
   Future<void> updateDurationOnServer({
     required String deviceUuid,
     required String deviceToken,
@@ -154,7 +145,6 @@ class TripProvider extends ChangeNotifier {
     }
   }
 
-  /// "YYYY-MM-DD" 두 개를 받아서 "n박 n+1일"로 변환
   String _calcDuration(String start, String end) {
     if (start.isEmpty || end.isEmpty) return '';
 

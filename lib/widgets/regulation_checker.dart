@@ -33,19 +33,23 @@ class _RegulationCheckerState extends State<RegulationChecker>
 
   // reference 데이터 목록
   List<CountryRef> _countries = [];
-  List<AirportRef> _airports = [];
+  List<AirportRef> _fromAirports = [];
+  List<AirportRef> _toAirports = [];
   List<AirlineRef> _airlines = [];
   List<CabinClassRef> _cabinClasses = [];
 
   // 선택된 값들
-  CountryRef? _selectedCountry;
-  AirportRef? _selectedAirport;
+  CountryRef? _fromCountry;
+  AirportRef? _fromAirport;
+  CountryRef? _toCountry;
+  AirportRef? _toAirport;
   AirlineRef? _selectedAirline;
   CabinClassRef? _selectedCabinClass;
 
   // 로딩 플래그
   bool _loadingCountries = false;
-  bool _loadingAirports = false;
+  bool _loadingFromAirports = false;
+  bool _loadingToAirports = false;
   bool _loadingAirlines = false;
   bool _loadingCabins = false;
 
@@ -120,7 +124,10 @@ class _RegulationCheckerState extends State<RegulationChecker>
     }
   }
 
-  Future<void> _loadAirportsForCountry(CountryRef country) async {
+  Future<void> _loadAirportsForCountry(
+      CountryRef country, {
+        required bool isFrom,
+      }) async {
     final device = context.read<DeviceProvider>();
     final deviceUuid = device.deviceUuid;
     final deviceToken = device.deviceToken;
@@ -128,9 +135,15 @@ class _RegulationCheckerState extends State<RegulationChecker>
     if (deviceUuid == null || deviceToken == null) return;
 
     setState(() {
-      _loadingAirports = true;
-      _airports = [];
-      _selectedAirport = null;
+      if (isFrom) {
+        _loadingFromAirports = true;
+        _fromAirports = [];
+        _fromAirport = null;
+      } else {
+        _loadingToAirports = true;
+        _toAirports = [];
+        _toAirport = null;
+      }
     });
 
     try {
@@ -144,7 +157,11 @@ class _RegulationCheckerState extends State<RegulationChecker>
       if (!mounted) return;
 
       setState(() {
-        _airports = airports;
+        if (isFrom) {
+          _fromAirports = airports;
+        } else {
+          _toAirports = airports;
+        }
       });
     } catch (e) {
       if (!mounted) return;
@@ -154,7 +171,11 @@ class _RegulationCheckerState extends State<RegulationChecker>
     } finally {
       if (!mounted) return;
       setState(() {
-        _loadingAirports = false;
+        if (isFrom) {
+          _loadingFromAirports = false;
+        } else {
+          _loadingToAirports = false;
+        }
       });
     }
   }
@@ -203,8 +224,10 @@ class _RegulationCheckerState extends State<RegulationChecker>
 
   bool get _canSearch =>
       !_isPreviewLoading &&
-          _selectedCountry != null &&
-          _selectedAirport != null &&
+          _fromCountry != null &&
+          _fromAirport != null &&
+          _toCountry != null &&
+          _toAirport != null &&
           _selectedAirline != null &&
           _selectedCabinClass != null &&
           _itemController.text.trim().isNotEmpty;
@@ -276,20 +299,23 @@ class _RegulationCheckerState extends State<RegulationChecker>
             ),
             const SizedBox(height: 16),
 
-            // 국가
+            // 출발 국가
             DropdownButtonFormField<CountryRef>(
-              value: _selectedCountry,
+              value: _fromCountry,
+              isExpanded: true,
               decoration: InputDecoration(
-                labelText: _loadingCountries
-                    ? '목적지 국가 (로딩 중...)'
-                    : '목적지 국가',
+                labelText:
+                _loadingCountries ? '출발 국가 (로딩 중...)' : '출발 국가',
               ),
               items: _countries
                   .map(
                     (c) => DropdownMenuItem(
                   value: c,
-                  // 👉 CountryRef 필드명에 맞게 수정
-                  child: Text('${c.nameKo} (${c.code})'),
+                  child: Text(
+                    '${c.nameKo} (${c.code})',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ),
               )
                   .toList(),
@@ -297,42 +323,116 @@ class _RegulationCheckerState extends State<RegulationChecker>
                   ? null
                   : (value) {
                 setState(() {
-                  _selectedCountry = value;
+                  _fromCountry = value;
                   _preview = null;
                 });
                 if (value != null) {
-                  _loadAirportsForCountry(value);
+                  _loadAirportsForCountry(value, isFrom: true);
                 }
               },
             ),
             const SizedBox(height: 16),
 
-            // 공항
+            // 출발 공항
             DropdownButtonFormField<AirportRef>(
-              value: _selectedAirport,
+              value: _fromAirport,
+              isExpanded: true,
               decoration: InputDecoration(
-                labelText: _selectedCountry == null
-                    ? '도착 공항 (먼저 국가 선택)'
-                    : _loadingAirports
-                    ? '도착 공항 (로딩 중...)'
-                    : '도착 공항',
+                labelText: _fromCountry == null
+                    ? '출발 공항 (먼저 국가 선택)'
+                    : _loadingFromAirports
+                    ? '출발 공항 (로딩 중...)'
+                    : '출발 공항',
               ),
-              items: _airports
+              items: _fromAirports
                   .map(
                     (a) => DropdownMenuItem(
                   value: a,
-                  // 👉 AirportRef 필드명에 맞게 수정
-                  child: Text('${a.nameKo} (${a.iataCode})'),
+                  child: Text(
+                    '${a.nameKo} (${a.iataCode})',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ),
               )
                   .toList(),
               onChanged: (deviceMissing ||
-                  _selectedCountry == null ||
-                  _loadingAirports)
+                  _fromCountry == null ||
+                  _loadingFromAirports)
                   ? null
                   : (value) {
                 setState(() {
-                  _selectedAirport = value;
+                  _fromAirport = value;
+                  _preview = null;
+                });
+              },
+            ),
+            const SizedBox(height: 16),
+
+            // 도착 국가
+            DropdownButtonFormField<CountryRef>(
+              value: _toCountry,
+              isExpanded: true,
+              decoration: InputDecoration(
+                labelText:
+                _loadingCountries ? '도착 국가 (로딩 중...)' : '도착 국가',
+              ),
+              items: _countries
+                  .map(
+                    (c) => DropdownMenuItem(
+                  value: c,
+                  child: Text(
+                    '${c.nameKo} (${c.code})',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              )
+                  .toList(),
+              onChanged: (deviceMissing || _loadingCountries)
+                  ? null
+                  : (value) {
+                setState(() {
+                  _toCountry = value;
+                  _preview = null;
+                });
+                if (value != null) {
+                  _loadAirportsForCountry(value, isFrom: false);
+                }
+              },
+            ),
+            const SizedBox(height: 16),
+
+            // 도착 공항
+            DropdownButtonFormField<AirportRef>(
+              value: _toAirport,
+              isExpanded: true,
+              decoration: InputDecoration(
+                labelText: _toCountry == null
+                    ? '도착 공항 (먼저 국가 선택)'
+                    : _loadingToAirports
+                    ? '도착 공항 (로딩 중...)'
+                    : '도착 공항',
+              ),
+              items: _toAirports
+                  .map(
+                    (a) => DropdownMenuItem(
+                  value: a,
+                  child: Text(
+                    '${a.nameKo} (${a.iataCode})',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              )
+                  .toList(),
+              onChanged: (deviceMissing ||
+                  _toCountry == null ||
+                  _loadingToAirports)
+                  ? null
+                  : (value) {
+                setState(() {
+                  _toAirport = value;
                   _preview = null;
                 });
               },
@@ -342,6 +442,7 @@ class _RegulationCheckerState extends State<RegulationChecker>
             // 항공사
             DropdownButtonFormField<AirlineRef>(
               value: _selectedAirline,
+              isExpanded: true,
               decoration: InputDecoration(
                 labelText: _loadingAirlines ? '항공사 (로딩 중...)' : '항공사',
               ),
@@ -349,8 +450,11 @@ class _RegulationCheckerState extends State<RegulationChecker>
                   .map(
                     (a) => DropdownMenuItem(
                   value: a,
-                  // 👉 AirlineRef 필드명에 맞게 수정
-                  child: Text('${a.name} (${a.code})'),
+                  child: Text(
+                    '${a.name} (${a.code})',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ),
               )
                   .toList(),
@@ -359,6 +463,7 @@ class _RegulationCheckerState extends State<RegulationChecker>
                   : (value) {
                 setState(() {
                   _selectedAirline = value;
+                  _selectedCabinClass = null;
                   _preview = null;
                 });
                 if (value != null) {
@@ -371,6 +476,7 @@ class _RegulationCheckerState extends State<RegulationChecker>
             // 좌석 등급
             DropdownButtonFormField<CabinClassRef>(
               value: _selectedCabinClass,
+              isExpanded: true,
               decoration: InputDecoration(
                 labelText: _selectedAirline == null
                     ? '좌석 등급 (먼저 항공사 선택)'
@@ -382,8 +488,11 @@ class _RegulationCheckerState extends State<RegulationChecker>
                   .map(
                     (c) => DropdownMenuItem(
                   value: c,
-                  // 👉 CabinClassRef 필드명에 맞게 수정
-                  child: Text('${c.name} (${c.code})'),
+                  child: Text(
+                    '${c.name} (${c.code})',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ),
               )
                   .toList(),
@@ -443,13 +552,28 @@ class _RegulationCheckerState extends State<RegulationChecker>
     final narration = _preview?.narration;
     final resolved = _preview?.resolved;
 
-    final countryStr = (_selectedCountry != null && _selectedAirport != null)
-        ? '${_selectedCountry!.nameKo} / ${_selectedAirport!.nameKo}'
-        : '';
+    String routeStr = '';
+    if (_fromCountry != null &&
+        _fromAirport != null &&
+        _toCountry != null &&
+        _toAirport != null) {
+      routeStr =
+      '${_fromCountry!.nameKo} ${_fromAirport!.nameKo} → '
+          '${_toCountry!.nameKo} ${_toAirport!.nameKo}';
+    }
+
     final airlineStr =
     (_selectedAirline != null && _selectedCabinClass != null)
         ? '${_selectedAirline!.name} · ${_selectedCabinClass!.name}'
         : '';
+
+    // ✅ 아이템 라벨은 한 줄만 표시
+    String? itemLabel;
+    if (narration != null && narration.title.trim().isNotEmpty) {
+      itemLabel = narration.title;
+    } else if (resolved != null && resolved.label.trim().isNotEmpty) {
+      itemLabel = resolved.label;
+    }
 
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -462,12 +586,9 @@ class _RegulationCheckerState extends State<RegulationChecker>
         Expanded(
           child: Text(
             [
-              if (countryStr.isNotEmpty) countryStr,
+              if (routeStr.isNotEmpty) routeStr,
               if (airlineStr.isNotEmpty) airlineStr,
-              if (resolved?.label != null)
-                '검색 아이템: ${resolved!.label}',
-              if (narration?.title != null)
-                '판정 항목: ${narration!.title}',
+              if (itemLabel != null) '아이템: $itemLabel',
             ].join('\n'),
             style: const TextStyle(
               fontSize: 16,
@@ -516,7 +637,6 @@ class _RegulationCheckerState extends State<RegulationChecker>
 
     final color = _statusColor(card.statusLabel);
 
-    // 🔧 List<dynamic> → List<String>
     final bullets = List<String>.from(narration.bullets);
     final aiTipBullets = aiTips
         .map((t) => t.text)
@@ -588,7 +708,6 @@ class _RegulationCheckerState extends State<RegulationChecker>
 
     final color = _statusColor(card.statusLabel);
 
-    // 🔧 List<dynamic> → List<String>
     final bullets = List<String>.from(narration.bullets);
     final aiTipBullets = aiTips
         .map((t) => t.text)
@@ -692,7 +811,8 @@ class _RegulationCheckerState extends State<RegulationChecker>
 
     final label = _itemController.text.trim();
     if (label.isEmpty ||
-        _selectedAirport == null ||
+        _fromAirport == null ||
+        _toAirport == null ||
         _selectedAirline == null ||
         _selectedCabinClass == null) {
       return;
@@ -704,8 +824,8 @@ class _RegulationCheckerState extends State<RegulationChecker>
     });
 
     try {
-      const fromAirport = 'ICN'; // 출발 공항은 일단 고정
-      final toAirport = _selectedAirport!.iataCode;
+      final fromAirport = _fromAirport!.iataCode;
+      final toAirport = _toAirport!.iataCode;
       final airlineCode = _selectedAirline!.code;
       final cabinClassCode = _selectedCabinClass!.code;
 
