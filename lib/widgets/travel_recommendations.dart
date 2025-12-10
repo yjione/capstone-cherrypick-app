@@ -32,6 +32,12 @@ class _TravelRecommendationsState extends State<TravelRecommendations>
   String? _fxResult;
   bool _isFxLoading = false;
 
+  // 마지막으로 조회한 환율 정보 (에러 시 fallback용 + 상단 표시용)
+  double? _lastFxRate; // base -> symbol (예: 1 KRW = 0.00068 USD)
+  String? _fxBase;     // base 통화 코드 (예: KRW)
+  String? _fxSymbol;   // 목적 통화 코드 (예: USD)
+  String? _fxAsOf;     // 기준일(as_of)
+
   @override
   void initState() {
     super.initState();
@@ -51,14 +57,17 @@ class _TravelRecommendationsState extends State<TravelRecommendations>
         _recommendation = null;
         _climate = null;
         _fxResult = null;
+        _lastFxRate = null;
+        _fxBase = null;
+        _fxSymbol = null;
+        _fxAsOf = null;
       });
     }
   }
 
   void _initDatesFromTrip() {
     _startDate = widget.trip.startDate;
-    // endDate 는 Trip 모델에 없으니까 일단 startDate만 가져오고,
-    // 사용자가 직접 입력하도록 둘 수도 있음.
+    // endDate는 사용자가 직접 선택.
   }
 
   @override
@@ -245,7 +254,7 @@ class _TravelRecommendationsState extends State<TravelRecommendations>
         ),
         const SizedBox(height: 12),
         SizedBox(
-          height: 460,
+          height: 460, // 각 탭 내용은 안에서 스크롤
           child: TabBarView(
             controller: _tabController,
             children: [
@@ -258,6 +267,8 @@ class _TravelRecommendationsState extends State<TravelRecommendations>
       ],
     );
   }
+
+  // ====== 날씨 · 환율 탭 ======
 
   Widget _buildWeatherTab() {
     final cs = Theme.of(context).colorScheme;
@@ -278,85 +289,124 @@ class _TravelRecommendationsState extends State<TravelRecommendations>
       summary = '최근 ${climate.usedYears.length}년 기후 평균 기준';
     }
 
-    final hasFx =
-        rec.exchangeRate.currencyCode.isNotEmpty &&
-            rec.exchangeRate.baseCurrency.isNotEmpty;
+    final hasStaticFx = rec.exchangeRate.currencyCode.isNotEmpty &&
+        rec.exchangeRate.baseCurrency.isNotEmpty &&
+        rec.exchangeRate.rate > 0;
 
-    return Card(
-      margin: EdgeInsets.zero,
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(Icons.wb_sunny_rounded, color: cs.primary),
-                const SizedBox(width: 8),
-                const Text(
-                  '현지 날씨 · 환율',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w700,
+    final hasRuntimeFx =
+        _lastFxRate != null && _fxBase != null && _fxSymbol != null;
+
+    // TextField 라벨에 쓸 기준 통화
+    final baseCurrencyLabel = rec.exchangeRate.baseCurrency.isNotEmpty
+        ? rec.exchangeRate.baseCurrency
+        : (_fxBase ?? 'KRW');
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Card(
+        margin: EdgeInsets.zero,
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(Icons.wb_sunny_rounded, color: cs.primary),
+                  const SizedBox(width: 8),
+                  const Text(
+                    '현지 날씨 · 환율',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              Text(
+                summary.isEmpty ? '날씨 요약 정보를 불러오지 못했어요.' : summary,
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                '기온: ${temp.toStringAsFixed(1)}°C '
+                    '(체감 ${feels.toStringAsFixed(1)}°C)',
+              ),
+              const SizedBox(height: 4),
+              Text(
+                climate != null && humidity == 0
+                    ? '습도: -'
+                    : '습도: ${humidity}%',
+              ),
+              if (climate != null) ...[
+                const SizedBox(height: 4),
+                Text(
+                  '최저/최고: '
+                      '${climate.recentStats.tMinC.toStringAsFixed(1)}°C'
+                      ' / ${climate.recentStats.tMaxC.toStringAsFixed(1)}°C',
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  '총 강수량: '
+                      '${climate.recentStats.precipSumMm.toStringAsFixed(1)} mm',
                 ),
               ],
-            ),
-            const SizedBox(height: 16),
-            Text(
-              summary.isEmpty ? '날씨 요약 정보를 불러오지 못했어요.' : summary,
-              style: const TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              '기온: ${temp.toStringAsFixed(1)}°C '
-                  '(체감 ${feels.toStringAsFixed(1)}°C)',
-            ),
-            const SizedBox(height: 4),
-            Text(
-              climate != null && humidity == 0
-                  ? '습도: -'
-                  : '습도: ${humidity}%',
-            ),
-            if (climate != null) ...[
-              const SizedBox(height: 4),
-              Text(
-                '최저/최고: '
-                    '${climate.recentStats.tMinC.toStringAsFixed(1)}°C'
-                    ' / ${climate.recentStats.tMaxC.toStringAsFixed(1)}°C',
-              ),
-              const SizedBox(height: 4),
-              Text(
-                '총 강수량: '
-                    '${climate.recentStats.precipSumMm.toStringAsFixed(1)} mm',
-              ),
-            ],
-            const Divider(height: 24),
-            Text(
-              '환율 정보',
-              style: TextStyle(
-                fontWeight: FontWeight.w700,
-                color: cs.onSurface,
-              ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              '1 ${rec.exchangeRate.currencyCode} ≈ '
-                  '${rec.exchangeRate.rate.toStringAsFixed(2)} '
-                  '${rec.exchangeRate.baseCurrency}',
-              style: TextStyle(color: cs.onSurfaceVariant),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              '업데이트: ${rec.exchangeRate.lastUpdated}',
-              style: TextStyle(fontSize: 12, color: cs.onSurfaceVariant),
-            ),
+              const Divider(height: 24),
 
-            // ====== 환율 계산기 UI ======
-            if (hasFx) ...[
+              // ====== 환율 정보 영역 ======
+              Text(
+                '환율 정보',
+                style: TextStyle(
+                  fontWeight: FontWeight.w700,
+                  color: cs.onSurface,
+                ),
+              ),
+              const SizedBox(height: 4),
+
+              // 1순위: 백엔드에서 내려준 exchange_rate
+              if (hasStaticFx) ...[
+                Text(
+                  '1 ${rec.exchangeRate.currencyCode} ≈ '
+                      '${rec.exchangeRate.rate.toStringAsFixed(2)} '
+                      '${rec.exchangeRate.baseCurrency}',
+                  style: TextStyle(color: cs.onSurfaceVariant),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  '업데이트: ${rec.exchangeRate.lastUpdated}',
+                  style:
+                  TextStyle(fontSize: 12, color: cs.onSurfaceVariant),
+                ),
+              ]
+              // 2순위: 사용자가 방금 FX API로 조회한 값
+              else if (hasRuntimeFx) ...[
+                // convert API: rate = base -> symbol (예: 1 KRW = 0.00068 USD)
+                // 우리가 보여주고 싶은 건 1 USD ≈ 1470 KRW 이라서 역수 사용
+                Text(
+                  '1 ${_fxSymbol!} ≈ '
+                      '${(1 / _lastFxRate!).toStringAsFixed(2)} ${_fxBase!}',
+                  style: TextStyle(color: cs.onSurfaceVariant),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  '업데이트: ${_fxAsOf ?? '-'}',
+                  style:
+                  TextStyle(fontSize: 12, color: cs.onSurfaceVariant),
+                ),
+              ]
+              // 둘 다 없으면
+              else ...[
+                  Text(
+                    '환율 정보를 불러오지 못했어요.',
+                    style: TextStyle(color: cs.onSurfaceVariant),
+                  ),
+                ],
+
+              // ====== 환율 계산기 UI (항상 노출) ======
               const SizedBox(height: 20),
               Text(
                 '간단 환율 계산기',
@@ -370,7 +420,7 @@ class _TravelRecommendationsState extends State<TravelRecommendations>
                 controller: _amountController,
                 keyboardType: TextInputType.number,
                 decoration: InputDecoration(
-                  labelText: '금액 (${rec.exchangeRate.baseCurrency})',
+                  labelText: '금액 ($baseCurrencyLabel)',
                   hintText: '예: 100000',
                   border: const OutlineInputBorder(),
                   isDense: true,
@@ -400,119 +450,130 @@ class _TravelRecommendationsState extends State<TravelRecommendations>
                 ),
               ],
             ],
-          ],
+          ),
         ),
       ),
     );
   }
+
+  // ====== 짐 추천 탭 ======
 
   Widget _buildItemsTab() {
     final cs = Theme.of(context).colorScheme;
     final rec = _recommendation!;
 
-    return Card(
-      margin: EdgeInsets.zero,
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(Icons.checklist_rounded, color: cs.primary),
-                const SizedBox(width: 8),
-                const Text(
-                  '추천 짐 아이템',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w700,
+    return SingleChildScrollView(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Card(
+        margin: EdgeInsets.zero,
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(Icons.checklist_rounded, color: cs.primary),
+                  const SizedBox(width: 8),
+                  const Text(
+                    '추천 짐 아이템',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              if (rec.popularItems.isEmpty)
+                Text(
+                  '추천 아이템 정보가 아직 없어요.',
+                  style: TextStyle(color: cs.onSurfaceVariant),
+                )
+              else
+                ...rec.popularItems.map(
+                      (item) => Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Container(
+                          width: 4,
+                          height: 4,
+                          margin:
+                          const EdgeInsets.only(top: 6, right: 8),
+                          decoration: BoxDecoration(
+                            color: cs.primary,
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                        Expanded(
+                          child: Text(
+                            item,
+                            style: const TextStyle(fontSize: 14),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            if (rec.popularItems.isEmpty)
+              const Divider(height: 24),
               Text(
-                '추천 아이템 정보가 아직 없어요.',
-                style: TextStyle(color: cs.onSurfaceVariant),
-              )
-            else
-              ...rec.popularItems.map(
-                    (item) => Padding(
-                  padding: const EdgeInsets.only(bottom: 8),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Container(
-                        width: 4,
-                        height: 4,
-                        margin: const EdgeInsets.only(top: 6, right: 8),
-                        decoration: BoxDecoration(
-                          color: cs.primary,
-                          shape: BoxShape.circle,
-                        ),
-                      ),
-                      Expanded(
-                        child: Text(
-                          item,
-                          style: const TextStyle(fontSize: 14),
-                        ),
-                      ),
-                    ],
-                  ),
+                '옷차림 팁',
+                style: TextStyle(
+                  fontWeight: FontWeight.w700,
+                  color: cs.onSurface,
                 ),
               ),
-            const Divider(height: 24),
-            Text(
-              '옷차림 팁',
-              style: TextStyle(
-                fontWeight: FontWeight.w700,
-                color: cs.onSurface,
+              const SizedBox(height: 4),
+              Text(
+                rec.outfitTip,
+                style: TextStyle(color: cs.onSurfaceVariant),
               ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              rec.outfitTip,
-              style: TextStyle(color: cs.onSurfaceVariant),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
   }
 
+  // ====== 쇼핑 가이드 탭 ======
+
   Widget _buildShoppingTab() {
     final cs = Theme.of(context).colorScheme;
     final rec = _recommendation!;
 
-    return Card(
-      margin: EdgeInsets.zero,
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(Icons.shopping_bag_rounded, color: cs.primary),
-                const SizedBox(width: 8),
-                const Text(
-                  '현지 쇼핑 가이드',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w700,
+    return SingleChildScrollView(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Card(
+        margin: EdgeInsets.zero,
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(Icons.shopping_bag_rounded, color: cs.primary),
+                  const SizedBox(width: 8),
+                  const Text(
+                    '현지 쇼핑 가이드',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Text(
-              rec.shoppingGuide.isEmpty
-                  ? '현지 쇼핑 가이드가 아직 준비되지 않았어요.'
-                  : rec.shoppingGuide,
-              style: TextStyle(color: cs.onSurfaceVariant),
-            ),
-          ],
+                ],
+              ),
+              const SizedBox(height: 12),
+              Text(
+                rec.shoppingGuide.isEmpty
+                    ? '현지 쇼핑 가이드가 아직 준비되지 않았어요.'
+                    : rec.shoppingGuide,
+                style: TextStyle(color: cs.onSurfaceVariant),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -539,7 +600,11 @@ class _TravelRecommendationsState extends State<TravelRecommendations>
 
     setState(() {
       _isLoading = true;
-      _fxResult = null; // 새로 돌릴 때 환율계산 결과도 초기화
+      _fxResult = null;
+      _lastFxRate = null;
+      _fxBase = null;
+      _fxSymbol = null;
+      _fxAsOf = null;
     });
 
     try {
@@ -566,7 +631,7 @@ class _TravelRecommendationsState extends State<TravelRecommendations>
         tripId: tripId,
       );
 
-      // 4) 기후 정보 조회 (날씨가 null일 때 대비용)
+      // 4) 기후 정보 조회
       final climate = await api.getTripClimate(
         deviceUuid: device.deviceUuid!,
         deviceToken: device.deviceToken!,
@@ -589,6 +654,43 @@ class _TravelRecommendationsState extends State<TravelRecommendations>
     }
   }
 
+  // ====== 국가코드 → 통화코드 간단 매핑 ======
+
+  String _guessCurrencyFromCountry(String countryCode) {
+    switch (countryCode.toUpperCase()) {
+      case 'US':
+        return 'USD';
+      case 'JP':
+        return 'JPY';
+      case 'GB':
+        return 'GBP';
+      case 'EU':
+      case 'DE':
+      case 'FR':
+      case 'IT':
+      case 'ES':
+        return 'EUR';
+      case 'CN':
+        return 'CNY';
+      case 'HK':
+        return 'HKD';
+      case 'TW':
+        return 'TWD';
+      case 'AU':
+        return 'AUD';
+      case 'CA':
+        return 'CAD';
+      case 'TH':
+        return 'THB';
+      case 'VN':
+        return 'VND';
+      case 'SG':
+        return 'SGD';
+      default:
+        return 'USD';
+    }
+  }
+
   // ====== 환율 계산기 버튼 눌렀을 때 ======
 
   Future<void> _onConvertFxPressed() async {
@@ -603,8 +705,13 @@ class _TravelRecommendationsState extends State<TravelRecommendations>
       return;
     }
 
-    final base = rec.exchangeRate.baseCurrency; // 예: KRW
-    final target = rec.exchangeRate.currencyCode; // 예: USD
+    // 기본 통화는 KRW로 가정, 서버에서 exchange_rate가 채워지면 그걸 우선 사용
+    String base = rec.exchangeRate.baseCurrency.isNotEmpty
+        ? rec.exchangeRate.baseCurrency
+        : 'KRW';
+    String target = rec.exchangeRate.currencyCode.isNotEmpty
+        ? rec.exchangeRate.currencyCode
+        : _guessCurrencyFromCountry(rec.countryCode);
 
     final rawText = _amountController.text.replaceAll(',', '').trim();
     final amount = double.tryParse(rawText);
@@ -623,7 +730,6 @@ class _TravelRecommendationsState extends State<TravelRecommendations>
     });
 
     try {
-      // 1차: FX API 를 직접 호출
       final json = await api.convertFx(
         deviceUuid: device.deviceUuid!,
         deviceToken: device.deviceToken!,
@@ -633,41 +739,57 @@ class _TravelRecommendationsState extends State<TravelRecommendations>
       );
 
       double? result;
-      if (json['result'] is num) {
-        result = (json['result'] as num).toDouble();
-      } else if (json['converted_amount'] is num) {
-        result = (json['converted_amount'] as num).toDouble();
-      } else if (json['rate'] is num) {
-        result = amount * (json['rate'] as num);
+      double? rate;
+
+      // 실제 응답: { base, symbol, amount, rate, converted, as_of, ... }
+      if (json['converted'] is num) {
+        result = (json['converted'] as num).toDouble();
+      }
+      if (json['rate'] is num) {
+        rate = (json['rate'] as num).toDouble();
       }
 
-      // 2차: 혹시 응답 구조가 달라서 result 를 못 뽑으면
-      // recommendation 에 있는 환율(rate)로 계산
-      if (result == null) {
-        final rate = rec.exchangeRate.rate; // 1 target ≈ rate base
-        if (rate > 0) {
-          result = amount / rate; // base -> target
-        }
+      // 방어적으로 다른 키 이름도 체크
+      if (result == null && json['result'] is num) {
+        result = (json['result'] as num).toDouble();
       }
+      if (result == null && json['converted_amount'] is num) {
+        result = (json['converted_amount'] as num).toDouble();
+      }
+      if (result == null && rate != null) {
+        result = amount * rate!;
+      }
+
+      // 메타 정보 저장 (상단 환율 표시용)
+      _lastFxRate = rate;
+      _fxBase = (json['base'] as String?) ?? base;
+      _fxSymbol = (json['symbol'] as String?) ?? target;
+      _fxAsOf = json['as_of'] as String?;
 
       if (result == null) {
         setState(() {
           _fxResult = '환율 정보를 불러오지 못했어요.';
         });
       } else {
+        final baseCode = _fxBase ?? base;
+        final targetCode = _fxSymbol ?? target;
         setState(() {
           _fxResult =
-          '${amount.toStringAsFixed(0)} $base ≈ ${result!.toStringAsFixed(2)} $target';
+          '${amount.toStringAsFixed(0)} $baseCode ≈ ${result!.toStringAsFixed(2)} $targetCode';
         });
       }
     } catch (e) {
-      // 에러 시에도 recommendation 의 rate 로 계산 시도
-      final rate = rec.exchangeRate.rate;
-      if (rate > 0) {
-        final fallback = amount / rate;
+      // 에러 시: 이전에 저장된 rate 나 recommendation 의 rate 로 근사 계산
+      final double? rate =
+          _lastFxRate ?? (rec.exchangeRate.rate > 0 ? rec.exchangeRate.rate : null);
+      final String baseCode = base;
+      final String targetCode = target;
+
+      if (rate != null && rate > 0) {
+        final fallback = amount * rate;
         setState(() {
           _fxResult =
-          '${amount.toStringAsFixed(0)} $base ≈ ${fallback.toStringAsFixed(2)} $target (저장된 환율 기준)';
+          '${amount.toStringAsFixed(0)} $baseCode ≈ ${fallback.toStringAsFixed(2)} $targetCode (저장된 환율 기준)';
         });
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
