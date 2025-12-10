@@ -18,7 +18,7 @@ class CherryAppBar extends StatelessWidget implements PreferredSizeWidget {
       automaticallyImplyLeading: false,
       title: Image.asset(
         'assets/images/Cherry_Pick_Text.png',
-        height: 28,              // 🔥 예전보다 살짝 더 크게
+        height: 28,
         fit: BoxFit.contain,
       ),
     );

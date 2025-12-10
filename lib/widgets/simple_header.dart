@@ -9,9 +9,8 @@ class SimpleHeader extends StatelessWidget {
       padding: const EdgeInsets.only(left: 16),
       child: Row(
         children: [
-          // 좌측 상단 육각형 PNG 로고
           Image.asset(
-            'assets/images/Cherry_Pick_LOGO.png', // ← PNG 경로
+            'assets/images/Cherry_Pick_LOGO.png',
             width: 32,
             height: 32,
           ),

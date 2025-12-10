@@ -107,7 +107,7 @@ class ItemList extends StatelessWidget {
       builder: (context) => AddItemDialog(bagId: bagId),
     );
 
-    if (result == null) return; // 취소
+    if (result == null) return;
 
     final tripProvider = context.read<TripProvider>();
     final deviceProvider = context.read<DeviceProvider>();
@@ -124,7 +124,7 @@ class ItemList extends StatelessWidget {
       return;
     }
 
-    // 2) PreviewRequest 만들기 (간단 버전)
+    // 2) PreviewRequest 만들기
     String extractAirportCode(String destination) {
       final start = destination.indexOf('(');
       final end = destination.indexOf(')');
@@ -203,7 +203,7 @@ class ItemList extends StatelessWidget {
         MaterialPageRoute(
           builder: (_) => ItemPreviewScreen(
             data: preview,
-            allowSave: true, // ✅ 버튼 노출
+            allowSave: true,
             tripId: int.parse(currentTrip.id),
             bagId: int.parse(bagId),
             deviceUuid: deviceUuid,
@@ -316,7 +316,7 @@ class ItemCard extends StatelessWidget {
                             ),
                           ),
                         ),
-                        // 🔒 카테고리 태그(예: '기타')는 당분간 숨김
+                        // 카테고리 태그(예: '기타')는 당분간 숨김
                         // Container(
                         //   padding: const EdgeInsets.symmetric(
                         //       horizontal: 8, vertical: 2),
@@ -403,7 +403,7 @@ class ItemCard extends StatelessWidget {
       return;
     }
 
-    final api = ItemApiService(); // ✅ baseUrl 인자 없이 사용
+    final api = ItemApiService(); //baseUrl 인자 없이 사용
 
     try {
       final preview = await api.getItemPreview(
