@@ -26,19 +26,17 @@ class _InitialTripScreenState extends State<InitialTripScreen> {
 
   final _formKey = GlobalKey<FormState>();
 
-  // 🎯 더미 기본값이 채워진 컨트롤러
-  final _tripTitleController = TextEditingController(text: 'LA 여행 테스트');
-  final _outboundFlightController = TextEditingController(text: 'KE017');
-  final _returnFlightController = TextEditingController(text: 'KE012');
+  final _tripTitleController = TextEditingController();
+  final _outboundFlightController = TextEditingController();
+  final _returnFlightController = TextEditingController();
 
-  // 🎯 더미 기본값 설정 (테스트용)
-  String? _fromCountryCode = 'KR';  // 한국
-  String? _fromAirportIata = 'ICN'; // 인천국제공항
-  String? _toCountryCode = 'US';    // 미국
-  String? _toAirportIata = 'LAX';   // 로스앤젤레스
-  String? _airlineCode = 'KE';      // 대한항공
-  String? _airlineName = '대한항공';
-  String? _seatClass = '이코노미';
+  String? _fromCountryCode;
+  String? _fromAirportIata;
+  String? _toCountryCode;
+  String? _toAirportIata;
+  String? _airlineCode;
+  String? _airlineName;
+  String? _seatClass;
 
   static const List<String> _defaultSeatClasses = [
     '이코노미',
