@@ -26,18 +26,19 @@ class _InitialTripScreenState extends State<InitialTripScreen> {
 
   final _formKey = GlobalKey<FormState>();
 
-  final _tripTitleController = TextEditingController();
+  // 🎯 더미 기본값이 채워진 컨트롤러
+  final _tripTitleController = TextEditingController(text: 'LA 여행 테스트');
+  final _outboundFlightController = TextEditingController(text: 'KE017');
+  final _returnFlightController = TextEditingController(text: 'KE012');
 
-  final _outboundFlightController = TextEditingController();
-  final _returnFlightController = TextEditingController();
-
-  String? _fromCountryCode;
-  String? _fromAirportIata;
-  String? _toCountryCode;
-  String? _toAirportIata;
-  String? _airlineCode;
-  String? _airlineName;
-  String? _seatClass;
+  // 🎯 더미 기본값 설정 (테스트용)
+  String? _fromCountryCode = 'KR';  // 한국
+  String? _fromAirportIata = 'ICN'; // 인천국제공항
+  String? _toCountryCode = 'US';    // 미국
+  String? _toAirportIata = 'LAX';   // 로스앤젤레스
+  String? _airlineCode = 'KE';      // 대한항공
+  String? _airlineName = '대한항공';
+  String? _seatClass = '이코노미';
 
   static const List<String> _defaultSeatClasses = [
     '이코노미',
@@ -396,6 +397,22 @@ class _InitialTripScreenState extends State<InitialTripScreen> {
       appBar: AppBar(
         title: const Text('첫 여행 설정'),
         centerTitle: true,
+        actions: [
+          TextButton(
+            onPressed: () {
+              // 건너뛰기: 바로 홈 화면으로
+              context.go('/home');
+            },
+            child: const Text(
+              '건너뛰기',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 16,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+        ],
       ),
       body: SafeArea(
         child: Padding(
