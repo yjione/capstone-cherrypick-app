@@ -262,4 +262,92 @@ class BagApiService {
         return 'grey';
     }
   }
+
+  /// PATCH /v1/bag-items/{item_id}
+  /// - status, bag_id, note 등 일부 필드만 수정할 때 사용
+  Future<PackingItem> updateBagItem({
+    required String deviceUuid,
+    required String deviceToken,
+    required int itemId,
+    String? status,   // 'todo' | 'done' | 'packed' ...
+    int? bagId,       // 가방 이동 기능까지 쓰고 싶으면 사용
+    int? quantity,
+    String? note,
+  }) async {
+    final url = Uri.parse('$_baseUrl/v1/bag-items/$itemId');
+
+    final body = <String, dynamic>{};
+    if (status != null) body['status'] = status;
+    if (bagId != null) body['bag_id'] = bagId;
+    if (quantity != null) body['quantity'] = quantity;
+    if (note != null) body['note'] = note;
+
+    if (body.isEmpty) {
+      throw Exception('updateBagItem: nothing to update');
+    }
+
+    final resp = await http.patch(
+      url,
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        'X-Device-UUID': deviceUuid,
+        'X-Device-Token': deviceToken,
+        'ngrok-skip-browser-warning': 'true',
+      },
+      body: jsonEncode(body),
+    );
+
+    final contentType = resp.headers['content-type'] ?? '';
+    if (!contentType.startsWith('application/json')) {
+      throw Exception('Unexpected response: ${resp.body}');
+    }
+    if (resp.statusCode != 200) {
+      throw Exception('Update bag item failed: ${resp.statusCode} ${resp.body}');
+    }
+
+    final Map<String, dynamic> json =
+    jsonDecode(resp.body) as Map<String, dynamic>;
+
+    // 서버 응답을 그대로 PackingItem으로 변환
+    return PackingItem.fromServerJson(json);
+  }
+
+  Future<PackingItem> createBagItem({
+    required String deviceUuid,
+    required String deviceToken,
+    required int bagId,
+    required String name,
+    String category = '기타',
+  }) async {
+    final url = Uri.parse('$_baseUrl/v1/bags/$bagId/items');
+
+    final resp = await http.post(
+      url,
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        'X-Device-UUID': deviceUuid,
+        'X-Device-Token': deviceToken,
+        'ngrok-skip-browser-warning': 'true',
+      },
+      body: jsonEncode({
+        'name': name,
+        'category': category,
+        'status': 'todo',
+        'quantity': 1,
+      }),
+    );
+
+    final contentType = resp.headers['content-type'] ?? '';
+    if (!contentType.startsWith('application/json')) {
+      throw Exception('Unexpected response: ${resp.body}');
+    }
+    if (resp.statusCode != 200 && resp.statusCode != 201) {
+      throw Exception('Create bag item failed: ${resp.statusCode} ${resp.body}');
+    }
+
+    final json = jsonDecode(resp.body);
+    return PackingItem.fromServerJson(json);
+  }
 }
