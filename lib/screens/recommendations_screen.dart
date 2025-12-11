@@ -1,6 +1,7 @@
 // lib/screens/recommendations_screen.dart
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:go_router/go_router.dart';
 
 import '../widgets/cherry_app_bar.dart';
 import '../widgets/bottom_navigation.dart';
@@ -52,7 +53,9 @@ class _RecommendationsScreenState extends State<RecommendationsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
+    final cs = Theme
+        .of(context)
+        .colorScheme;
     final tripProvider = context.watch<TripProvider>();
     final Trip? currentTrip = tripProvider.currentTrip;
 
@@ -64,19 +67,19 @@ class _RecommendationsScreenState extends State<RecommendationsScreen> {
     );
   }
 
-  Widget _buildBody(
-      BuildContext context,
+  Widget _buildBody(BuildContext context,
       TripProvider tripProvider,
-      Trip? currentTrip,
-      ) {
-    final cs = Theme.of(context).colorScheme;
+      Trip? currentTrip,) {
+    final cs = Theme
+        .of(context)
+        .colorScheme;
 
     // 아직 서버에서 불러오는 중
     if (!_initialized || tripProvider.isLoading) {
       return const Center(child: CircularProgressIndicator());
     }
 
-    // 한 번 불러왔는데도 여행이 없으면 안내문
+    // 한 번 불러왔는데도 여행이 없으면 안내문 + 버튼
     if (tripProvider.hasLoadedOnce && currentTrip == null) {
       return Center(
         child: Padding(
@@ -84,8 +87,11 @@ class _RecommendationsScreenState extends State<RecommendationsScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(Icons.luggage_outlined,
-                  size: 56, color: cs.onSurface.withOpacity(0.7)),
+              Icon(
+                Icons.luggage_outlined,
+                size: 56,
+                color: cs.onSurface.withOpacity(0.7),
+              ),
               const SizedBox(height: 16),
               const Text(
                 '선택된 여행이 없어요',
@@ -93,12 +99,18 @@ class _RecommendationsScreenState extends State<RecommendationsScreen> {
                   fontSize: 18,
                   fontWeight: FontWeight.w700,
                 ),
+                textAlign: TextAlign.center,
               ),
               const SizedBox(height: 8),
               const Text(
-                '항공 규정 페이지에서 여행을 먼저 생성한 뒤\n'
-                    '여기서 추천을 받아볼 수 있어요.',
+                '여행을 추가하면 여행지와 기간에 맞는\n'
+                    '추천 짐 리스트를 보여드릴게요.',
                 textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 24),
+              FilledButton(
+                onPressed: () => context.go('/initial-trip'),
+                child: const Text('여행 추가하러 가기'),
               ),
             ],
           ),
