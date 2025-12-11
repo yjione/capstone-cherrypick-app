@@ -1,3 +1,4 @@
+//lib/widgets/item_scanner.dart
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:typed_data';
@@ -103,6 +104,8 @@ class _ItemScannerState extends State<ItemScanner> {
   }
 
   Widget _buildStartOptions() {
+    final cs = Theme.of(context).colorScheme;
+
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(32),
@@ -112,31 +115,45 @@ class _ItemScannerState extends State<ItemScanner> {
               width: 64,
               height: 64,
               decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.primaryContainer,
+                color: cs.primaryContainer,
                 borderRadius: BorderRadius.circular(32),
               ),
               child: Icon(
                 Icons.camera_alt,
                 size: 32,
-                color: Theme.of(context).colorScheme.onPrimaryContainer,
+                color: cs.onPrimaryContainer,
               ),
             ),
             const SizedBox(height: 16),
             Row(
               children: [
+                // ✅ 카메라 촬영 버튼
                 Expanded(
-                  child: ElevatedButton.icon(
-                    onPressed: _startCamera,
-                    icon: const Icon(Icons.camera_alt),
-                    label: const Text('카메라 촬영'),
+                  child: SizedBox(
+                    height: 48,
+                    child: ElevatedButton.icon(
+                      style: ElevatedButton.styleFrom(
+                        minimumSize: const Size.fromHeight(48),
+                      ),
+                      onPressed: _startCamera,
+                      icon: const Icon(Icons.camera_alt),
+                      label: const Text('카메라 촬영'),
+                    ),
                   ),
                 ),
                 const SizedBox(width: 12),
+                // ✅ 사진 업로드 버튼
                 Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: _pickImage,
-                    icon: const Icon(Icons.upload),
-                    label: const Text('사진 업로드'),
+                  child: SizedBox(
+                    height: 48,
+                    child: OutlinedButton.icon(
+                      style: OutlinedButton.styleFrom(
+                        minimumSize: const Size.fromHeight(48),
+                      ),
+                      onPressed: _pickImage,
+                      icon: const Icon(Icons.upload),
+                      label: const Text('사진 업로드'),
+                    ),
                   ),
                 ),
               ],
@@ -151,6 +168,8 @@ class _ItemScannerState extends State<ItemScanner> {
     if (_cameraController == null || !_cameraController!.value.isInitialized) {
       return const Center(child: CircularProgressIndicator());
     }
+
+    final cs = Theme.of(context).colorScheme;
 
     return Card(
       child: Padding(
@@ -168,10 +187,7 @@ class _ItemScannerState extends State<ItemScanner> {
                     Container(
                       decoration: BoxDecoration(
                         border: Border.all(
-                          color: Theme.of(context)
-                              .colorScheme
-                              .primary
-                              .withOpacity(0.5),
+                          color: cs.primary.withOpacity(0.5),
                           width: 2,
                         ),
                       ),
@@ -181,7 +197,7 @@ class _ItemScannerState extends State<ItemScanner> {
                           height: 200,
                           decoration: BoxDecoration(
                             border: Border.all(
-                              color: Theme.of(context).colorScheme.primary,
+                              color: cs.primary,
                               width: 2,
                             ),
                             borderRadius: BorderRadius.circular(8),
@@ -213,19 +229,33 @@ class _ItemScannerState extends State<ItemScanner> {
             const SizedBox(height: 16),
             Row(
               children: [
+                // ✅ 촬영하기 버튼
                 Expanded(
-                  child: ElevatedButton.icon(
-                    onPressed: _capturePhoto,
-                    icon: const Icon(Icons.camera_alt),
-                    label: const Text('촬영하기'),
+                  child: SizedBox(
+                    height: 48,
+                    child: ElevatedButton.icon(
+                      style: ElevatedButton.styleFrom(
+                        minimumSize: const Size.fromHeight(48),
+                      ),
+                      onPressed: _capturePhoto,
+                      icon: const Icon(Icons.camera_alt),
+                      label: const Text('촬영하기'),
+                    ),
                   ),
                 ),
                 const SizedBox(width: 12),
+                // ✅ 취소 버튼
                 Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: _stopCamera,
-                    icon: const Icon(Icons.close),
-                    label: const Text('취소'),
+                  child: SizedBox(
+                    height: 48,
+                    child: OutlinedButton.icon(
+                      style: OutlinedButton.styleFrom(
+                        minimumSize: const Size.fromHeight(48),
+                      ),
+                      onPressed: _stopCamera,
+                      icon: const Icon(Icons.close),
+                      label: const Text('취소'),
+                    ),
                   ),
                 ),
               ],
@@ -264,17 +294,32 @@ class _ItemScannerState extends State<ItemScanner> {
             const SizedBox(height: 16),
             Row(
               children: [
+                // ✅ 짐 리스트에 추가 버튼
                 Expanded(
-                  child: ElevatedButton(
-                    onPressed: _scanResult != null ? _addToPackingList : null,
-                    child: const Text('짐 리스트에 추가'),
+                  child: SizedBox(
+                    height: 48,
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        minimumSize: const Size.fromHeight(48),
+                      ),
+                      onPressed:
+                      _scanResult != null ? _addToPackingList : null,
+                      child: const Text('짐 리스트에 추가'),
+                    ),
                   ),
                 ),
                 const SizedBox(width: 12),
+                // ✅ 다시 스캔 버튼
                 Expanded(
-                  child: OutlinedButton(
-                    onPressed: _resetScan,
-                    child: const Text('다시 스캔'),
+                  child: SizedBox(
+                    height: 48,
+                    child: OutlinedButton(
+                      style: OutlinedButton.styleFrom(
+                        minimumSize: const Size.fromHeight(48),
+                      ),
+                      onPressed: _resetScan,
+                      child: const Text('다시 스캔'),
+                    ),
                   ),
                 ),
               ],
@@ -333,16 +378,14 @@ class _ItemScannerState extends State<ItemScanner> {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
               decoration: BoxDecoration(
-                color:
-                Theme.of(context).colorScheme.surfaceContainerHighest,
+                color: Theme.of(context).colorScheme.surfaceContainerHighest,
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Text(
                 '정확도 ${_scanResult!.confidence}%',
                 style: TextStyle(
                   fontSize: 12,
-                  color:
-                  Theme.of(context).colorScheme.onSurfaceVariant,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
                 ),
               ),
             ),
@@ -578,9 +621,8 @@ class _ItemScannerState extends State<ItemScanner> {
             allowed ? '허용' : '불가',
             style: TextStyle(
               fontSize: 10,
-              color: allowed
-                  ? Colors.green.shade700
-                  : Colors.red.shade700,
+              color:
+              allowed ? Colors.green.shade700 : Colors.red.shade700,
             ),
           ),
         ],
@@ -716,7 +758,6 @@ class _ItemScannerState extends State<ItemScanner> {
       final previewProvider = context.read<PreviewProvider>();
 
       // 목적지 공항 코드 추출 (Trip.destination에서 괄호 안 코드 뽑기 시도)
-      // 예: "일본 나리타(NRT)" → "NRT"
       String extractAirportCode(String destination) {
         final start = destination.indexOf('(');
         final end = destination.indexOf(')');
@@ -728,24 +769,20 @@ class _ItemScannerState extends State<ItemScanner> {
           if (isCode) return inside.toUpperCase();
         }
 
-        // 괄호가 없으면 앞 3글자 정도를 코드처럼 사용하는 임시 로직
         final trimmed = destination.trim();
         if (trimmed.length >= 3) {
           return trimmed.substring(0, 3).toUpperCase();
         }
-        // 완전 없으면 그냥 NRT 같은 기본값 사용 (임시)
         return 'NRT';
       }
 
-      // 좌석 등급/항공사 정보는 아직 Trip에 없으므로 임시값 사용
       const fromAirport = 'ICN';
       final toAirport = extractAirportCode(currentTrip.destination);
-      const airlineCode = 'KE'; // TODO: Trip에 항공사 필드 추가 후 교체
-      const cabinClass = 'economy'; // TODO: Trip에 좌석 등급 필드 추가 후 교체
+      const airlineCode = 'KE';
+      const cabinClass = 'economy';
 
-      // 아이템 정보도 아직 구조화 안되어 있으니 대략적인 값 사용
       final request = PreviewRequest(
-        label: _scanResult!.item, // 스캔된 아이템 이름
+        label: _scanResult!.item,
         locale: 'ko-KR',
         reqId: DateTime.now().millisecondsSinceEpoch.toString(),
         itinerary: Itinerary(
@@ -762,7 +799,7 @@ class _ItemScannerState extends State<ItemScanner> {
           ),
         ],
         itemParams: ItemParams(
-          volumeMl: 100, // TODO: _scanResult.volume 파싱해서 반영 가능
+          volumeMl: 100,
           wh: 0,
           count: 1,
           abvPercent: 0,

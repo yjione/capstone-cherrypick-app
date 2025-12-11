@@ -55,15 +55,18 @@ class TripProvider extends ChangeNotifier {
         purge: purge,
       );
 
-      if (_trips.length > 1) {
-        _trips.removeWhere((trip) => trip.id == tripId);
+      // 🔥 개수와 상관없이 항상 삭제
+      _trips.removeWhere((trip) => trip.id == tripId);
 
-        if (_currentTripId == tripId) {
-          _currentTripId = _trips.isNotEmpty ? _trips.first.id : null;
-        }
-
-        notifyListeners();
+      if (_trips.isEmpty) {
+        // 남은 여행이 하나도 없으면 currentTrip 도 초기화
+        _currentTripId = null;
+      } else if (_currentTripId == tripId) {
+        // 삭제한 게 현재 선택된 여행이면 첫 번째 걸로 이동
+        _currentTripId = _trips.first.id;
       }
+
+      notifyListeners();
     } catch (e) {
       _error = e.toString();
       notifyListeners();

@@ -82,6 +82,8 @@ class _ItemPreviewScreenState extends State<ItemPreviewScreen> {
     addChip(resolvedLabel);
     addChip(canonical);
 
+    final cs = Theme.of(context).colorScheme;
+
     return Scaffold(
       appBar: AppBar(title: const Text('아이템 규정')),
       body: ListView(
@@ -247,24 +249,50 @@ class _ItemPreviewScreenState extends State<ItemPreviewScreen> {
         ],
       ),
 
+      // 기존 bottomNavigationBar 전체를 이걸로 교체
       bottomNavigationBar: widget.allowSave
           ? SafeArea(
         child: Padding(
-          padding:
-          const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
           child: Row(
             children: [
+              // 왼쪽: 취소 버튼
               Expanded(
-                child: OutlinedButton(
+                child: FilledButton(
+                  style: FilledButton.styleFrom(
+                    backgroundColor: cs.surface,
+                    foregroundColor: cs.onSurface,
+                    side: BorderSide(color: cs.outlineVariant),
+                    minimumSize: const Size.fromHeight(40),
+                    padding: const EdgeInsets.symmetric(
+                      vertical: 8
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                  ),
                   onPressed: _isSaving
                       ? null
                       : () => Navigator.of(context).pop(),
                   child: const Text('취소'),
                 ),
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: 8),
+
+              // 오른쪽: 추가하기 버튼
               Expanded(
                 child: FilledButton(
+                  style: FilledButton.styleFrom(
+                    backgroundColor: cs.primary,
+                    foregroundColor: cs.onPrimary,
+                    minimumSize: const Size.fromHeight(40),
+                    padding: const EdgeInsets.symmetric(
+                      vertical: 8,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                  ),
                   onPressed: _isSaving ? null : _onConfirmSave,
                   child: _isSaving
                       ? const SizedBox(
@@ -275,7 +303,7 @@ class _ItemPreviewScreenState extends State<ItemPreviewScreen> {
                       color: Colors.white,
                     ),
                   )
-                      : const Text('아이템 리스트에 추가'),
+                      : const Text('추가하기'),
                 ),
               ),
             ],
@@ -297,6 +325,16 @@ class _ItemPreviewScreenState extends State<ItemPreviewScreen> {
       return;
     }
 
+    // ✅ engine 이 없는 fallback 응답이면 저장 자체를 막고 안내만 띄움
+    if (widget.data.engine == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('규정 엔진 정보가 없어 아이템을 저장할 수 없어요. 다시 시도해 주세요.'),
+        ),
+      );
+      return;
+    }
+
     setState(() => _isSaving = true);
 
     try {
@@ -308,7 +346,8 @@ class _ItemPreviewScreenState extends State<ItemPreviewScreen> {
         bagId: widget.bagId!,
         tripId: widget.tripId!,
         preview: widget.data,
-        reqId: widget.data.engine.reqId,
+        // ✅ 여기서는 non-null 이라고 보장되므로 !
+        reqId: widget.data.engine!.reqId,
         userLabel: widget.userLabel,
       );
 

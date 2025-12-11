@@ -2,15 +2,13 @@
 
 class PackingItem {
   final String id;       // 서버 item_id (string 으로 변환)
-  /// ✅ 화면에 보여줄 이름
-  ///    우선순위: user_label > label > resolved_label > title > canonical
-  final String name;
-  final String category; // 서버에 없으면 '기타'
-  final bool packed;     // 서버 status == 'done'/'packed' 일 때 true
-  final String bagId;    // 서버 bag_id
+  final String name;     // 사람이 읽는 이름
+  final String category; // 서버 category 없으면 "기타"
+  final bool packed;     // status == done/packed
+  final String bagId;    // 서버 bag_id (문자열)
   final String? location;
   final String? weight;
-  final String? notes;   // 서버 note
+  final String? notes;
 
   PackingItem({
     required this.id,
@@ -58,7 +56,6 @@ class PackingItem {
     };
   }
 
-  /// ✅ 앱 내부에서만 쓰던 단순 JSON용 (필요하면 유지)
   factory PackingItem.fromJson(Map<String, dynamic> json) {
     return PackingItem(
       id: json['id'] as String,
@@ -72,38 +69,32 @@ class PackingItem {
     );
   }
 
-  /// ✅ 서버에서 내려오는 아이템 JSON 파서
-  ///  - user_label → label → resolved_label → title → canonical 순으로
-  ///    사람이 읽기 좋은 이름을 선택
-  /// ✅ 서버에서 내려오는 아이템 JSON 파서
-  ///  - 우선순위: user_label → label → resolved.label → narration.title → title → canonical
+  /// ========= 서버 JSON 파서 (핵심 수정) =========
   factory PackingItem.fromServerJson(Map<String, dynamic> json) {
-    // ---------- 1. preview_snapshot 꺼내기 ----------
+    // preview_snapshot
     final previewSnapshot =
     json['preview_snapshot'] as Map<String, dynamic>?;
 
     final previewResponse =
     previewSnapshot?['preview_response'] as Map<String, dynamic>?;
 
-    // resolved { label, canonical, ... }
+    // resolved { label, canonical }
     final resolved =
     previewResponse?['resolved'] as Map<String, dynamic>?;
-
     final resolvedLabel = resolved?['label']?.toString();
     final resolvedCanonical = resolved?['canonical']?.toString();
 
-    // narration.title (preview_response 안쪽)
+    // narration.title
     final narration =
     previewResponse?['narration'] as Map<String, dynamic>?;
     final narrationTitle = narration?['title']?.toString();
 
-    // narration.title (preview_snapshot 바로 아래쪽)
     final snapshotNarration =
     previewSnapshot?['narration'] as Map<String, dynamic>?;
     final snapshotNarrationTitle =
     snapshotNarration?['title']?.toString();
 
-    // engine/engine_response 쪽 canonical
+    // engine canonical
     final engine =
     previewResponse?['engine'] as Map<String, dynamic>?;
     final engineCanonical = engine?['canonical']?.toString();
@@ -113,13 +104,13 @@ class PackingItem {
     final engineResponseCanonical =
     engineResponse?['canonical']?.toString();
 
-    // 리스트 응답 top-level 값들
-    final userLabel = json['user_label']?.toString(); // 미래 대비
+    // top-level
+    final userLabel = json['user_label']?.toString();
     final label = json['label']?.toString();
-    final topTitle = json['title']?.toString(); // 현재는 apparel_clothing 같은 값
+    final topTitle = json['title']?.toString();
     final topCanonical = json['canonical']?.toString();
 
-    // ---------- 2. canonical 추출 (내부용) ----------
+    // canonical 통합
     final canonical = resolvedCanonical ??
         engineCanonical ??
         engineResponseCanonical ??
@@ -127,7 +118,7 @@ class PackingItem {
         topTitle ??
         '';
 
-    // ---------- 3. 화면에 보여줄 이름(displayName) 결정 ----------
+    // 화면 표시 이름 선택
     String displayName;
 
     if (userLabel != null && userLabel.trim().isNotEmpty) {
@@ -135,9 +126,8 @@ class PackingItem {
     } else if (label != null && label.trim().isNotEmpty) {
       displayName = label.trim();
     } else if (resolvedLabel != null && resolvedLabel.trim().isNotEmpty) {
-      displayName = resolvedLabel.trim(); // "맨투맨", "충전기", "후드집업"
-    } else if (narrationTitle != null &&
-        narrationTitle.trim().isNotEmpty) {
+      displayName = resolvedLabel.trim();
+    } else if (narrationTitle != null && narrationTitle.trim().isNotEmpty) {
       displayName = narrationTitle.trim();
     } else if (snapshotNarrationTitle != null &&
         snapshotNarrationTitle.trim().isNotEmpty) {
@@ -145,25 +135,26 @@ class PackingItem {
     } else if (topTitle != null && topTitle.trim().isNotEmpty) {
       displayName = topTitle.trim();
     } else {
-      displayName = canonical; // 그래도 없으면 마지막으로 canonical
+      displayName = canonical;
     }
 
-    // ---------- 4. packed 여부 ----------
+    // packed 여부 판정
     final status = json['status']?.toString() ?? 'todo';
     final isPacked =
         status == 'done' || status == 'packed' || status == 'complete';
 
-    // ---------- 5. 최종 PackingItem 생성 ----------
+    // 핵심: bag_id 반드시 문자열
+    final bagId = (json['bag_id'] ?? '').toString();
+
     return PackingItem(
       id: (json['item_id'] ?? json['id']).toString(),
       name: displayName,
       category: json['category']?.toString() ?? '기타',
       packed: isPacked,
-      bagId: (json['bag_id'] ?? '').toString(),
+      bagId: bagId,
       location: json['location']?.toString(),
       weight: json['weight']?.toString(),
       notes: json['note']?.toString(),
     );
   }
-
 }
