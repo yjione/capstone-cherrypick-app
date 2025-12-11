@@ -5,9 +5,8 @@ import 'package:http/http.dart' as http;
 import '../models/device_register.dart';
 
 class DeviceApiService {
-  // 로컬 서버 기준
-  static const String _baseUrl =
-      'https://unmatted-cecilia-criticizingly.ngrok-free.dev';
+  // 백엔드 base URL (Android 에뮬레이터에서 로컬 PC 접근 시 10.0.2.2 사용)
+  static const String _baseUrl = 'http://10.0.2.2:8001';
 
   Future<DeviceRegisterResponse> registerDevice(
       DeviceRegisterRequest request) async {
