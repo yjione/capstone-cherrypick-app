@@ -53,11 +53,12 @@ class ScanScreen extends StatelessWidget {
                 const SizedBox(height: 24),
                 FilledButton(
                   onPressed: () {
-                    // 🔸 여행 관리/추가하는 Luggage 탭으로 이동
-                    context.go('/luggage');
+                    // 바로 여행 추가 화면으로 이동
+                    context.go('/initial-trip');
                   },
-                  child: const Text('여행 추가하러 가기'),
+                  child: const Text('여행 추가하기'),
                 ),
+
               ],
             ),
           ),

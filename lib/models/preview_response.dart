@@ -3,44 +3,69 @@
 class PreviewResponse {
   final String state;
   final Resolved resolved;
-  final Engine engine;
+
+  /// 엔진 정보는 fallback 상황에서 null 로 올 수 있음
+  final Engine? engine;
+
+  /// 내레이션도 LLM 오류 시 null 로 올 수 있음
   final Narration? narration;
+
+  /// 상단 ai_tips (엔진 쪽과 별개로 올 수도 있음)
   final List<AiTip> aiTips;
+
   final Flags flags;
 
   PreviewResponse({
     required this.state,
     required this.resolved,
-    required this.engine,
-    required this.narration,
+    this.engine,
+    this.narration,
     required this.aiTips,
     required this.flags,
   });
 
   factory PreviewResponse.fromJson(Map<String, dynamic> json) {
+    final engineJson = json['engine'];
+    final narrationJson = json['narration'];
+
     return PreviewResponse(
-      state: json['state'] as String,
+      state: json['state'] as String? ?? '',
       resolved: Resolved.fromJson(json['resolved'] as Map<String, dynamic>),
-      engine: Engine.fromJson(json['engine'] as Map<String, dynamic>),
-      narration: json['narration'] != null
-          ? Narration.fromJson(json['narration'] as Map<String, dynamic>)
+      // 🔐 engine 이 null 이거나 이상한 타입이면 그냥 null 로 둔다
+      engine: engineJson is Map<String, dynamic>
+          ? Engine.fromJson(engineJson)
+          : null,
+      // 🔐 narration 도 마찬가지로 null-safe 파싱
+      narration: narrationJson is Map<String, dynamic>
+          ? Narration.fromJson(narrationJson)
           : null,
       aiTips: (json['ai_tips'] as List<dynamic>? ?? [])
-          .map((e) => AiTip.fromJson(e as Map<String, dynamic>))
+          .whereType<Map<String, dynamic>>()
+          .map((e) => AiTip.fromJson(e))
           .toList(),
-      flags: Flags.fromJson(json['flags'] as Map<String, dynamic>),
+      // flags 가 null 이면 빈 맵으로 처리
+      flags: Flags.fromJson(
+        (json['flags'] as Map<String, dynamic>? ?? <String, dynamic>{}),
+      ),
     );
   }
 
   Map<String, dynamic> toJson() {
-    return {
+    final data = <String, dynamic>{
       'state': state,
       'resolved': resolved.toJson(),
-      'engine': engine.toJson(),
-      if (narration != null) 'narration': narration!.toJson(),
       'ai_tips': aiTips.map((e) => e.toJson()).toList(),
       'flags': flags.toJson(),
     };
+
+    if (engine != null) {
+      data['engine'] = engine!.toJson();
+    }
+    if (narration != null) {
+      data['narration'] = narration!.toJson();
+    }
+
+    return data;
   }
 }
 
@@ -58,9 +83,9 @@ class Resolved {
 
   factory Resolved.fromJson(Map<String, dynamic> json) {
     return Resolved(
-      label: json['label'] as String,
-      canonical: json['canonical'] as String,
-      locale: json['locale'] as String,
+      label: json['label'] as String? ?? '',
+      canonical: json['canonical'] as String? ?? '',
+      locale: json['locale'] as String? ?? '',
     );
   }
 
@@ -95,15 +120,22 @@ class Engine {
 
   factory Engine.fromJson(Map<String, dynamic> json) {
     return Engine(
-      reqId: json['req_id'] as String,
-      canonical: json['canonical'] as String,
-      decision: Decision.fromJson(json['decision'] as Map<String, dynamic>),
-      conditions:
-      Conditions.fromJson(json['conditions'] as Map<String, dynamic>),
+      reqId: json['req_id'] as String? ?? '',
+      canonical: json['canonical'] as String? ?? '',
+      decision: json['decision'] is Map<String, dynamic>
+          ? Decision.fromJson(json['decision'] as Map<String, dynamic>)
+          : Decision(
+        carryOn: DecisionSide(status: '', badges: const [], reasonCodes: const []),
+        checked: DecisionSide(status: '', badges: const [], reasonCodes: const []),
+      ),
+      conditions: json['conditions'] is Map<String, dynamic>
+          ? Conditions.fromJson(json['conditions'] as Map<String, dynamic>)
+          : Conditions(carryOn: const {}, checked: const {}, common: const {}),
       sources: (json['sources'] as List<dynamic>? ?? []),
       trace: (json['trace'] as List<dynamic>? ?? []),
       aiTips: (json['ai_tips'] as List<dynamic>? ?? [])
-          .map((e) => AiTip.fromJson(e as Map<String, dynamic>))
+          .whereType<Map<String, dynamic>>()
+          .map((e) => AiTip.fromJson(e))
           .toList(),
     );
   }
@@ -132,9 +164,12 @@ class Decision {
 
   factory Decision.fromJson(Map<String, dynamic> json) {
     return Decision(
-      carryOn:
-      DecisionSide.fromJson(json['carry_on'] as Map<String, dynamic>),
-      checked: DecisionSide.fromJson(json['checked'] as Map<String, dynamic>),
+      carryOn: DecisionSide.fromJson(
+        json['carry_on'] as Map<String, dynamic>,
+      ),
+      checked: DecisionSide.fromJson(
+        json['checked'] as Map<String, dynamic>,
+      ),
     );
   }
 
@@ -159,7 +194,7 @@ class DecisionSide {
 
   factory DecisionSide.fromJson(Map<String, dynamic> json) {
     return DecisionSide(
-      status: json['status'] as String,
+      status: json['status'] as String? ?? '',
       badges: (json['badges'] as List<dynamic>? ?? [])
           .map((e) => e.toString())
           .toList(),
@@ -228,7 +263,7 @@ class Narration {
 
   factory Narration.fromJson(Map<String, dynamic> json) {
     return Narration(
-      title: json['title'] as String,
+      title: json['title'] as String? ?? '',
       carryOnCard:
       CardInfo.fromJson(json['carry_on_card'] as Map<String, dynamic>),
       checkedCard:
@@ -264,8 +299,8 @@ class CardInfo {
 
   factory CardInfo.fromJson(Map<String, dynamic> json) {
     return CardInfo(
-      statusLabel: json['status_label'] as String,
-      shortReason: json['short_reason'] as String,
+      statusLabel: json['status_label'] as String? ?? '',
+      shortReason: json['short_reason'] as String? ?? '',
     );
   }
 
@@ -293,12 +328,12 @@ class AiTip {
 
   factory AiTip.fromJson(Map<String, dynamic> json) {
     return AiTip(
-      id: json['id'] as String,
-      text: json['text'] as String,
+      id: json['id'] as String? ?? '',
+      text: json['text'] as String? ?? '',
       tags: (json['tags'] as List<dynamic>? ?? [])
           .map((e) => e.toString())
           .toList(),
-      relevance: (json['relevance'] as num).toDouble(),
+      relevance: (json['relevance'] as num?)?.toDouble() ?? 0.0,
     );
   }
 

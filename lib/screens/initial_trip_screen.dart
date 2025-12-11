@@ -1,4 +1,4 @@
-// lib/screens/initial_trip_screen.dart
+/// lib/screens/initial_trip_screen.dart
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
@@ -190,8 +190,410 @@ class _InitialTripScreenState extends State<InitialTripScreen> {
     );
   }
 
+  // ---------------------------------------------------------------------------
+  //  바텀시트 선택 로직
+  // ---------------------------------------------------------------------------
+
+  Future<String?> _selectCountryBottomSheet({
+    required String title,
+    String? initialCode,
+  }) async {
+    final refProvider = context.read<ReferenceProvider>();
+    final countries = refProvider.countries;
+
+    if (countries.isEmpty) {
+      _showError('국가 목록을 불러오지 못했어요. 잠시 후 다시 시도해 주세요.');
+      return null;
+    }
+
+    return showModalBottomSheet<String>(
+      context: context,
+      backgroundColor: Theme.of(context).colorScheme.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) {
+        final screenHeight = MediaQuery.of(context).size.height;
+
+        return SafeArea(
+          child: SizedBox(
+            height: screenHeight * 0.65,
+            child: Column(
+              children: [
+                const SizedBox(height: 8),
+                Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: Colors.black12,
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Padding(
+                  padding:
+                  const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      title,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Expanded(
+                  child: ListView.builder(
+                    itemCount: countries.length,
+                    itemBuilder: (context, index) {
+                      final c = countries[index];
+                      final label =
+                      c.nameKo.isNotEmpty ? c.nameKo : c.nameEn ?? c.code;
+                      final selected = c.code == initialCode;
+                      return ListTile(
+                        title: Text(label),
+                        subtitle: Text(
+                          c.code,
+                          style: const TextStyle(fontSize: 12),
+                        ),
+                        trailing:
+                        selected ? const Icon(Icons.check, size: 18) : null,
+                        onTap: () {
+                          Navigator.pop(context, c.code);
+                        },
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Future<String?> _selectAirportBottomSheet({
+    required String title,
+    required String countryCode,
+    String? initialIata,
+  }) async {
+    final refProvider = context.read<ReferenceProvider>();
+    final airports = refProvider.airportsForCountry(countryCode);
+
+    if (airports.isEmpty) {
+      _showError('해당 국가의 공항 목록을 불러오지 못했어요.');
+      return null;
+    }
+
+    return showModalBottomSheet<String>(
+      context: context,
+      backgroundColor: Theme.of(context).colorScheme.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) {
+        final screenHeight = MediaQuery.of(context).size.height;
+
+        return SafeArea(
+          child: SizedBox(
+            height: screenHeight * 0.65,
+            child: Column(
+              children: [
+                const SizedBox(height: 8),
+                Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: Colors.black12,
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Padding(
+                  padding:
+                  const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      title,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Expanded(
+                  child: ListView.builder(
+                    itemCount: airports.length,
+                    itemBuilder: (context, index) {
+                      final a = airports[index];
+                      final label = a.nameKo.isNotEmpty
+                          ? '${a.nameKo} (${a.iataCode})'
+                          : '${a.nameEn} (${a.iataCode})';
+                      final selected = a.iataCode == initialIata;
+                      return ListTile(
+                        title: Text(label),
+                        trailing:
+                        selected ? const Icon(Icons.check, size: 18) : null,
+                        onTap: () {
+                          Navigator.pop(context, a.iataCode);
+                        },
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _selectFromRoute() async {
+    // 1) 국가 선택
+    final countryCode = await _selectCountryBottomSheet(
+      title: '출발 국가 선택',
+      initialCode: _fromCountryCode,
+    );
+    if (countryCode == null) return;
+
+    await _fetchAirportsForCountry(countryCode);
+
+    // 2) 공항 선택
+    final airportIata = await _selectAirportBottomSheet(
+      title: '출발 공항 선택',
+      countryCode: countryCode,
+      initialIata: _fromAirportIata,
+    );
+    if (airportIata == null) return;
+
+    setState(() {
+      _fromCountryCode = countryCode;
+      _fromAirportIata = airportIata;
+    });
+  }
+
+  Future<void> _selectToRoute() async {
+    final countryCode = await _selectCountryBottomSheet(
+      title: '도착 국가 선택',
+      initialCode: _toCountryCode,
+    );
+    if (countryCode == null) return;
+
+    await _fetchAirportsForCountry(countryCode);
+
+    final airportIata = await _selectAirportBottomSheet(
+      title: '도착 공항 선택',
+      countryCode: countryCode,
+      initialIata: _toAirportIata,
+    );
+    if (airportIata == null) return;
+
+    setState(() {
+      _toCountryCode = countryCode;
+      _toAirportIata = airportIata;
+    });
+  }
+
+  Future<void> _selectAirline() async {
+    final refProvider = context.read<ReferenceProvider>();
+    final airlines = refProvider.airlines;
+
+    if (airlines.isEmpty) {
+      _showError('항공사 목록을 불러오지 못했어요.');
+      return;
+    }
+
+    final selectedCode = await showModalBottomSheet<String>(
+      context: context,
+      backgroundColor: Theme.of(context).colorScheme.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) {
+        final screenHeight = MediaQuery.of(context).size.height;
+
+        return SafeArea(
+          child: SizedBox(
+            height: screenHeight * 0.65,
+            child: Column(
+              children: [
+                const SizedBox(height: 8),
+                Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: Colors.black12,
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      '항공사 선택',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Expanded(
+                  child: ListView.builder(
+                    itemCount: airlines.length,
+                    itemBuilder: (context, index) {
+                      final a = airlines[index];
+                      final selected = a.code == _airlineCode;
+                      return ListTile(
+                        title: Text(a.name),
+                        subtitle: Text(
+                          a.code,
+                          style: const TextStyle(fontSize: 12),
+                        ),
+                        trailing:
+                        selected ? const Icon(Icons.check, size: 18) : null,
+                        onTap: () {
+                          Navigator.pop(context, a.code);
+                        },
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+
+    if (selectedCode == null) return;
+
+    final airline = airlines.firstWhere(
+          (a) => a.code == selectedCode,
+      orElse: () => AirlineRef(code: selectedCode, name: selectedCode),
+    );
+
+    await _fetchCabinClassesForAirline(selectedCode);
+
+    setState(() {
+      _airlineCode = selectedCode;
+      _airlineName = airline.name;
+      _seatClass = null; // 항공사 바꾸면 좌석 초기화
+    });
+  }
+
+  Future<void> _selectSeatClass() async {
+    if (_airlineCode == null) {
+      _showError('먼저 항공사를 선택해 주세요.');
+      return;
+    }
+
+    final refProvider = context.read<ReferenceProvider>();
+    final cabinClasses = refProvider.cabinClassesForAirline(_airlineCode!);
+
+    final items = cabinClasses.isNotEmpty
+        ? cabinClasses.map((c) => c.name).toList()
+        : _defaultSeatClasses;
+
+    final selectedName = await showModalBottomSheet<String>(
+      context: context,
+      backgroundColor: Theme.of(context).colorScheme.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) {
+        final screenHeight = MediaQuery.of(context).size.height;
+
+        return SafeArea(
+          child: SizedBox(
+            height: screenHeight * 0.5,
+            child: Column(
+              children: [
+                const SizedBox(height: 8),
+                Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: Colors.black12,
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      '좌석 등급 선택',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Expanded(
+                  child: ListView.builder(
+                    itemCount: items.length,
+                    itemBuilder: (context, index) {
+                      final name = items[index];
+                      final selected = name == _seatClass;
+                      return ListTile(
+                        title: Text(name),
+                        trailing:
+                        selected ? const Icon(Icons.check, size: 18) : null,
+                        onTap: () {
+                          Navigator.pop(context, name);
+                        },
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+
+    if (selectedName == null) return;
+
+    setState(() {
+      _seatClass = selectedName;
+    });
+  }
+
+  // ---------------------------------------------------------------------------
+  //  Submit
+  // ---------------------------------------------------------------------------
+
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
+
+    // 수동 입력 모드일 때는 선택 여부를 수동으로 검사
+    if (_inputMode == 1) {
+      if (_fromCountryCode == null ||
+          _fromAirportIata == null ||
+          _toCountryCode == null ||
+          _toAirportIata == null ||
+          _airlineCode == null ||
+          _seatClass == null) {
+        _showError('왕복 정보를 모두 선택해 주세요.');
+        return;
+      }
+    }
 
     debugPrint('▶️ [_submit] start, inputMode=$_inputMode');
 
@@ -383,14 +785,31 @@ class _InitialTripScreenState extends State<InitialTripScreen> {
     }
   }
 
+  // ---------------------------------------------------------------------------
+  // UI
+  // ---------------------------------------------------------------------------
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final cs = theme.colorScheme;
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('첫 여행 설정'),
         centerTitle: true,
+        actions: [
+          TextButton(
+            onPressed: () => context.go('/luggage'),
+            child: Text(
+              '건너뛰기',
+              style: TextStyle(
+                color: cs.primary,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+        ],
       ),
       body: SafeArea(
         child: Padding(
@@ -482,7 +901,6 @@ class _InitialTripScreenState extends State<InitialTripScreen> {
     );
   }
 
-
   Widget _buildFlightNumberForm() {
     return Column(
       key: const ValueKey('flightForm'),
@@ -524,83 +942,28 @@ class _InitialTripScreenState extends State<InitialTripScreen> {
   }
 
   Widget _buildDetailForm() {
-    final refProvider = context.watch<ReferenceProvider>();
-    final countries = refProvider.countries;
-    final airlines = refProvider.airlines;
+    final cs = Theme.of(context).colorScheme;
 
-    final countryItems = countries.map((country) {
-      final label = country.nameKo.isNotEmpty ? country.nameKo : country.nameEn;
-      return DropdownMenuItem<String>(
-        value: country.code,
-        child: Text(
-          label,
-          overflow: TextOverflow.ellipsis,
-          maxLines: 1,
-        ),
-      );
-    }).toList();
-
-    // 선택된 국가별 공항 리스트
-    final fromAirports = _fromCountryCode == null
-        ? const <AirportRef>[]
-        : refProvider.airportsForCountry(_fromCountryCode!);
-    final toAirports = _toCountryCode == null
-        ? const <AirportRef>[]
-        : refProvider.airportsForCountry(_toCountryCode!);
-
-    // 선택된 항공사의 좌석 등급
-    final cabinClasses = _airlineCode == null
-        ? const <CabinClassRef>[]
-        : refProvider.cabinClassesForAirline(_airlineCode!);
-
-    List<DropdownMenuItem<String>> _airportItems(
-        List<AirportRef> airports,
-        ) {
-      return airports.map((a) {
-        final label = a.nameKo.isNotEmpty
-            ? '${a.nameKo} (${a.iataCode})'
-            : '${a.nameEn} (${a.iataCode})';
-        return DropdownMenuItem<String>(
-          value: a.iataCode,
-          child: Text(
-            label,
-            overflow: TextOverflow.ellipsis,
-            maxLines: 1,
-          ),
-        );
-      }).toList();
+    String _fromLabel() {
+      if (_fromCountryCode == null || _fromAirportIata == null) {
+        return '출발 국가/공항 선택';
+      }
+      return '$_fromCountryCode · $_fromAirportIata';
     }
 
-    // 좌석 등급 드롭다운 아이템
-    List<DropdownMenuItem<String>> _seatClassItems() {
-      if (cabinClasses.isNotEmpty) {
-        return cabinClasses
-            .map(
-              (c) => DropdownMenuItem<String>(
-            value: c.name,
-            child: Text(
-              c.name,
-              overflow: TextOverflow.ellipsis,
-              maxLines: 1,
-            ),
-          ),
-        )
-            .toList();
+    String _toLabel() {
+      if (_toCountryCode == null || _toAirportIata == null) {
+        return '도착 국가/공항 선택';
       }
+      return '$_toCountryCode · $_toAirportIata';
+    }
 
-      // API 실패 / 아직 로딩 전일 때 fallback
-      return _defaultSeatClasses
-          .map(
-            (s) => DropdownMenuItem<String>(
-          value: s,
-          child: Text(
-            s,
-            overflow: TextOverflow.ellipsis,
-            maxLines: 1,
-          ),
-        ),
-      )
-          .toList();
+    String _airlineLabel() {
+      return _airlineName ?? '항공사 선택';
+    }
+
+    String _seatClassLabel() {
+      return _seatClass ?? '좌석 등급 선택';
     }
 
     return Column(
@@ -611,188 +974,89 @@ class _InitialTripScreenState extends State<InitialTripScreen> {
           '왕복 기준 출발·도착 정보를 입력해 주세요.',
           style: TextStyle(fontWeight: FontWeight.w600),
         ),
-        const SizedBox(height: 8),
-        if (refProvider.isLoadingCountries && countries.isEmpty)
-          const Padding(
-            padding: EdgeInsets.only(bottom: 8),
-            child: LinearProgressIndicator(),
+        const SizedBox(height: 12),
+        Card(
+          elevation: 0,
+          color: cs.surfaceVariant.withOpacity(0.15),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
           ),
-        if (refProvider.countriesError != null)
-          Padding(
-            padding: const EdgeInsets.only(bottom: 8),
-            child: Text(
-              '국가 목록을 불러오지 못했어요 😢\n${refProvider.countriesError}',
-              style: const TextStyle(fontSize: 12, color: Colors.red),
-            ),
-          ),
-        if (refProvider.isLoadingAirports)
-          const Padding(
-            padding: EdgeInsets.only(bottom: 8),
-            child: LinearProgressIndicator(),
-          ),
-        if (refProvider.airportsError != null)
-          Padding(
-            padding: const EdgeInsets.only(bottom: 8),
-            child: Text(
-              '공항 목록을 불러오지 못했어요 😢\n${refProvider.airportsError}',
-              style: const TextStyle(fontSize: 12, color: Colors.red),
-            ),
-          ),
-        if (refProvider.isLoadingAirlines && airlines.isEmpty)
-          const Padding(
-            padding: EdgeInsets.only(bottom: 8),
-            child: LinearProgressIndicator(),
-          ),
-        if (refProvider.airlinesError != null)
-          Padding(
-            padding: const EdgeInsets.only(bottom: 8),
-            child: Text(
-              '항공사 목록을 불러오지 못했어요 😢\n${refProvider.airlinesError}',
-              style: const TextStyle(fontSize: 12, color: Colors.red),
-            ),
-          ),
-        if (refProvider.isLoadingCabinClasses && _airlineCode != null)
-          const Padding(
-            padding: EdgeInsets.only(bottom: 8),
-            child: LinearProgressIndicator(),
-          ),
-        if (refProvider.cabinClassesError != null)
-          Padding(
-            padding: const EdgeInsets.only(bottom: 8),
-            child: Text(
-              '좌석 등급을 불러오지 못했어요 😢\n${refProvider.cabinClassesError}',
-              style: const TextStyle(fontSize: 12, color: Colors.red),
-            ),
-          ),
-        const SizedBox(height: 8),
-
-        // 출발 국가
-        DropdownButtonFormField<String>(
-          isExpanded: true,
-          value: _fromCountryCode,
-          decoration: const InputDecoration(labelText: '출발 국가'),
-          items: countryItems,
-          onChanged: (value) {
-            setState(() {
-              _fromCountryCode = value;
-              _fromAirportIata = null;
-            });
-            if (value != null) {
-              _fetchAirportsForCountry(value);
-            }
-          },
-          validator: (value) => value == null ? '출발 국가를 선택해 주세요.' : null,
-        ),
-        const SizedBox(height: 8),
-
-        // 출발 공항
-        DropdownButtonFormField<String>(
-          isExpanded: true,
-          value: _fromAirportIata,
-          decoration: const InputDecoration(labelText: '출발 공항'),
-          items: _airportItems(fromAirports),
-          onChanged: (_fromCountryCode == null)
-              ? null
-              : (value) {
-            setState(() => _fromAirportIata = value);
-          },
-          validator: (value) =>
-          value == null ? '출발 공항을 선택해 주세요.' : null,
-        ),
-        const SizedBox(height: 16),
-
-        // 도착 국가
-        DropdownButtonFormField<String>(
-          isExpanded: true,
-          value: _toCountryCode,
-          decoration: const InputDecoration(labelText: '도착 국가'),
-          items: countryItems,
-          onChanged: (value) {
-            setState(() {
-              _toCountryCode = value;
-              _toAirportIata = null;
-            });
-            if (value != null) {
-              _fetchAirportsForCountry(value);
-            }
-          },
-          validator: (value) => value == null ? '도착 국가를 선택해 주세요.' : null,
-        ),
-        const SizedBox(height: 8),
-
-        // 도착 공항
-        DropdownButtonFormField<String>(
-          isExpanded: true,
-          value: _toAirportIata,
-          decoration: const InputDecoration(labelText: '도착 공항'),
-          items: _airportItems(toAirports),
-          onChanged: (_toCountryCode == null)
-              ? null
-              : (value) {
-            setState(() => _toAirportIata = value);
-          },
-          validator: (value) => value == null ? '도착 공항을 선택해 주세요.' : null,
-        ),
-        const SizedBox(height: 16),
-
-        // 항공사
-        DropdownButtonFormField<String>(
-          isExpanded: true,
-          value: _airlineCode,
-          decoration: const InputDecoration(labelText: '항공사'),
-          items: airlines.map((air) {
-            return DropdownMenuItem<String>(
-              value: air.code,
-              child: Text(
-                air.name,
-                overflow: TextOverflow.ellipsis,
-                maxLines: 1,
+          child: Column(
+            children: [
+              _RouteTile(
+                label: '출발지',
+                value: _fromLabel(),
+                onTap: _selectFromRoute,
               ),
-            );
-          }).toList(),
-          onChanged: (value) {
-            setState(() {
-              _airlineCode = value;
-              _seatClass = null;
-
-              if (value != null) {
-                final selected = airlines.firstWhere(
-                      (a) => a.code == value,
-                  orElse: () => AirlineRef(code: value, name: value),
-                );
-                _airlineName = selected.name;
-                _fetchCabinClassesForAirline(value);
-              } else {
-                _airlineName = null;
-              }
-            });
-          },
-          validator: (value) => value == null ? '항공사를 선택해 주세요.' : null,
+              const Divider(height: 1),
+              _RouteTile(
+                label: '도착지',
+                value: _toLabel(),
+                onTap: _selectToRoute,
+              ),
+              const Divider(height: 1),
+              _RouteTile(
+                label: '항공사',
+                value: _airlineLabel(),
+                onTap: _selectAirline,
+              ),
+              const Divider(height: 1),
+              _RouteTile(
+                label: '좌석 등급',
+                value: _seatClassLabel(),
+                onTap: _selectSeatClass,
+              ),
+            ],
+          ),
         ),
-        const SizedBox(height: 16),
-
-        // 좌석 등급
-        DropdownButtonFormField<String>(
-          isExpanded: true,
-          value: _seatClass,
-          decoration: const InputDecoration(labelText: '좌석 등급'),
-          items: _seatClassItems(),
-          onChanged: (_airlineCode == null)
-              ? null
-              : (value) {
-            setState(() {
-              _seatClass = value;
-            });
-          },
-          validator: (value) => value == null ? '좌석 등급을 선택해 주세요.' : null,
-        ),
-
-        const SizedBox(height: 16),
+        const SizedBox(height: 12),
         const Text(
           '※ 입력하신 왕복 구간을 기준으로 항공 규정을 계산할 수 있어요.',
           style: TextStyle(fontSize: 12, color: Colors.grey),
         ),
       ],
+    );
+  }
+}
+
+class _RouteTile extends StatelessWidget {
+  final String label;
+  final String value;
+  final VoidCallback onTap;
+
+  const _RouteTile({
+    required this.label,
+    required this.value,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final isPlaceholder = value.contains('선택');
+
+    return ListTile(
+      dense: true,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+      onTap: onTap,
+      title: Text(
+        label,
+        style: const TextStyle(
+          fontSize: 13,
+          fontWeight: FontWeight.w500,
+        ),
+      ),
+      subtitle: Text(
+        value,
+        style: TextStyle(
+          fontSize: 14,
+          color: isPlaceholder
+              ? cs.onSurfaceVariant.withOpacity(0.6)
+              : cs.onSurface,
+          fontWeight: isPlaceholder ? FontWeight.w400 : FontWeight.w600,
+        ),
+      ),
+      trailing: const Icon(Icons.chevron_right),
     );
   }
 }
