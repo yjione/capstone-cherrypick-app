@@ -5,8 +5,7 @@ import 'package:http/http.dart' as http;
 import '../models/preview_response.dart';
 
 /// 다른 ApiService 들과 동일한 baseUrl
-const String kCherryPickApiBaseUrl =
-    'https://unmatted-cecilia-criticizingly.ngrok-free.dev';
+const String kCherryPickApiBaseUrl = 'http://10.0.2.2:8001';
 
 class ItemApiService {
   final String baseUrl;

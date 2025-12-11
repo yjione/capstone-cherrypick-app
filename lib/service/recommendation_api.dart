@@ -2,8 +2,7 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 
-const String kCherryPickApiBaseUrl =
-    'https://unmatted-cecilia-criticizingly.ngrok-free.dev';
+const String kCherryPickApiBaseUrl = 'http://10.0.2.2:8001';
 
 class RecommendationApiService {
   final String baseUrl;
