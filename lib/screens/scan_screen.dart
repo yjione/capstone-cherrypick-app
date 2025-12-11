@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 
 import '../widgets/bottom_navigation.dart';
 import '../widgets/item_scanner.dart';
+import '../widgets/yolo_scanner.dart'; // 새로운 YOLO 스캐너
 import '../widgets/cherry_app_bar.dart';      // ✅ 추가
 import '../providers/trip_provider.dart';
 
@@ -66,11 +67,11 @@ class ScanScreen extends StatelessWidget {
       );
     }
 
-    // 🔹 2) 현재 여행이 있는 정상 케이스 → 스캐너 UI
+    // 🔹 2) 현재 여행이 있는 정상 케이스 → 새로운 YOLO 스캐너 UI
     return Scaffold(
       backgroundColor: scheme.surface,
       appBar: const CherryAppBar(),               // ✅ 통일
-      body: const ItemScanner(),
+      body: const YoloScanner(), // ItemScanner 대신 YoloScanner 사용
       bottomNavigationBar: const BottomNavigation(currentIndex: 1),
     );
   }
