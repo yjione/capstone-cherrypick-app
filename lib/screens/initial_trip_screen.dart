@@ -58,30 +58,35 @@ class _InitialTripScreenState extends State<InitialTripScreen> {
 
       debugPrint('🔧 [InitialTripScreen] registerIfNeeded 호출');
 
+      // 저장된 UUID를 먼저 로드
+      await deviceProvider.loadFromStorage();
+      
+      // UUID가 없으면 새로 생성 (타임스탬프 기반)
+      final deviceUuid = deviceProvider.deviceUuid ?? 
+          'android-emulator-${DateTime.now().millisecondsSinceEpoch}';
+
       await deviceProvider.registerIfNeeded(
         appVersion: '1.0.0',
         os: 'android', // 실제 플랫폼에 맞게 수정
         model: 'test-device',
         locale: 'ko-KR',
         timezone: '+09:00',
-        deviceUuid: 'dummy-device-1234', // 실제 UUID로 교체
+        deviceUuid: deviceUuid, // 동적으로 생성된 UUID 사용
       );
 
-      final deviceUuid = deviceProvider.deviceUuid;
-      final deviceToken = deviceProvider.deviceToken;
-
-      if (deviceUuid != null && deviceToken != null) {
+      // 등록 후 디바이스 정보 확인
+      if (deviceProvider.deviceUuid != null && deviceProvider.deviceToken != null) {
         debugPrint('🌍 국가 목록 fetchCountries 호출');
         await refProvider.fetchCountries(
-          deviceUuid: deviceUuid,
-          deviceToken: deviceToken,
+          deviceUuid: deviceProvider.deviceUuid!,
+          deviceToken: deviceProvider.deviceToken!,
           activeOnly: true,
         );
 
         debugPrint('✈️ 항공사 목록 fetchAirlines 호출');
         await refProvider.fetchAirlines(
-          deviceUuid: deviceUuid,
-          deviceToken: deviceToken,
+          deviceUuid: deviceProvider.deviceUuid!,
+          deviceToken: deviceProvider.deviceToken!,
           activeOnly: true,
         );
       } else {
@@ -574,7 +579,10 @@ class _InitialTripScreenState extends State<InitialTripScreen> {
     // 좌석 등급 드롭다운 아이템
     List<DropdownMenuItem<String>> _seatClassItems() {
       if (cabinClasses.isNotEmpty) {
+        // 중복 제거를 위해 Set 사용
+        final seen = <String>{};
         return cabinClasses
+            .where((c) => seen.add(c.name)) // 중복 제거
             .map(
               (c) => DropdownMenuItem<String>(
             value: c.name,
@@ -601,6 +609,29 @@ class _InitialTripScreenState extends State<InitialTripScreen> {
         ),
       )
           .toList();
+    }
+
+    // 현재 선택된 좌석 등급이 items에 유효한지 확인
+    String? _getValidSeatClass() {
+      if (_seatClass == null) return null;
+      
+      final items = _seatClassItems();
+      final hasValidValue = items.any((item) => item.value == _seatClass);
+      
+      // 유효하지 않으면 null 반환 (리셋)
+      if (!hasValidValue) {
+        // 다음 프레임에서 _seatClass를 null로 설정
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) {
+            setState(() {
+              _seatClass = null;
+            });
+          }
+        });
+        return null;
+      }
+      
+      return _seatClass;
     }
 
     return Column(
@@ -774,7 +805,7 @@ class _InitialTripScreenState extends State<InitialTripScreen> {
         // 좌석 등급
         DropdownButtonFormField<String>(
           isExpanded: true,
-          value: _seatClass,
+          value: _getValidSeatClass(),
           decoration: const InputDecoration(labelText: '좌석 등급'),
           items: _seatClassItems(),
           onChanged: (_airlineCode == null)
