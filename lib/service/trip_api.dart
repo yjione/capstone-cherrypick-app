@@ -4,8 +4,7 @@ import 'package:http/http.dart' as http;
 import 'package:flutter/foundation.dart' show kIsWeb;
 
 class TripApiService {
-  static const String _baseUrl =
-      'https://unmatted-cecilia-criticizingly.ngrok-free.dev';
+  static const String _baseUrl = 'http://10.0.2.2:8001';
 
   /// ---------------- Lookup Flight ----------------
   Future<FlightLookupResult> lookupFlight({

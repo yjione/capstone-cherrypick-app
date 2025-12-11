@@ -7,8 +7,7 @@ import '../models/packing_item.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 
 class BagApiService {
-  static const String _baseUrl =
-      'https://unmatted-cecilia-criticizingly.ngrok-free.dev';
+  static const String _baseUrl = 'http://10.0.2.2:8001';
 
   /// trip 하나에 속한 가방 목록 + 각 가방의 아이템까지 전부 가져오기
   Future<List<Bag>> listBagsWithItems({
