@@ -6,7 +6,7 @@ import '../models/preview_response.dart';
 
 /// 다른 ApiService 들과 동일한 baseUrl
 const String kCherryPickApiBaseUrl =
-    'https://unmatted-cecilia-criticizingly.ngrok-free.dev';
+    'https://gutturalized-london-unmistakingly.ngrok-free.dev';
 
 class ItemApiService {
   final String baseUrl;

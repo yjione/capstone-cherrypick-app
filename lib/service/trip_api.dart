@@ -5,7 +5,7 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 
 class TripApiService {
   static const String _baseUrl =
-      'https://unmatted-cecilia-criticizingly.ngrok-free.dev';
+      'https://gutturalized-london-unmistakingly.ngrok-free.dev';
 
   /// ---------------- Lookup Flight ----------------
   Future<FlightLookupResult> lookupFlight({

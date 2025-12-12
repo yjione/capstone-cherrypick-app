@@ -10,7 +10,7 @@ import '../models/cabin_class_ref.dart';
 
 class ReferenceApiService {
   static const String _baseUrl =
-      'https://unmatted-cecilia-criticizingly.ngrok-free.dev';
+      'https://gutturalized-london-unmistakingly.ngrok-free.dev';
   /// GET /v1/reference/countries
   Future<List<CountryRef>> listCountries({
     required String deviceUuid,

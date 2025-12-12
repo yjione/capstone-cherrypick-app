@@ -6,7 +6,7 @@ import 'package:http/http.dart' as http;
 import '../models/outfit_recommendation.dart';
 
 const String kCherryPickApiBaseUrl =
-    'https://unmatted-cecilia-criticizingly.ngrok-free.dev';
+    'https://gutturalized-london-unmistakingly.ngrok-free.dev';
 
 class RecommendationApiService {
   final String baseUrl;
