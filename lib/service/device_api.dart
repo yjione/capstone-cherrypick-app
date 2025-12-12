@@ -7,7 +7,7 @@ import '../models/device_register.dart';
 class DeviceApiService {
   // 로컬 서버 기준
   static const String _baseUrl =
-      'https://unmatted-cecilia-criticizingly.ngrok-free.dev';
+      'https://gutturalized-london-unmistakingly.ngrok-free.dev';
 
   Future<DeviceRegisterResponse> registerDevice(
       DeviceRegisterRequest request) async {
