@@ -17,7 +17,7 @@ class ReferenceApiService {
     required String deviceToken,
     String? q,
     String? region,
-    bool activeOnly = true,
+    bool activeOnly = false,  // 테스트용: 모든 국가 표시
   }) async {
     final uri = Uri.parse('$_baseUrl/v1/reference/countries').replace(
       queryParameters: {
@@ -62,7 +62,7 @@ class ReferenceApiService {
     String? q,
     String? countryCode,
     int limit = 100,
-    bool activeOnly = true,
+    bool activeOnly = false,  // 테스트용: 모든 공항 표시
   }) async {
     final uri = Uri.parse('$_baseUrl/v1/reference/airports').replace(
       queryParameters: {

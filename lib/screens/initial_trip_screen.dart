@@ -26,18 +26,19 @@ class _InitialTripScreenState extends State<InitialTripScreen> {
 
   final _formKey = GlobalKey<FormState>();
 
-  final _tripTitleController = TextEditingController();
+  // 🎯 더미 기본값이 채워진 컨트롤러
+  final _tripTitleController = TextEditingController(text: 'LA 여행 테스트');
+  final _outboundFlightController = TextEditingController(text: 'KE017');
+  final _returnFlightController = TextEditingController(text: 'KE012');
 
-  final _outboundFlightController = TextEditingController();
-  final _returnFlightController = TextEditingController();
-
-  String? _fromCountryCode;
-  String? _fromAirportIata;
-  String? _toCountryCode;
-  String? _toAirportIata;
-  String? _airlineCode;
-  String? _airlineName;
-  String? _seatClass;
+  // 🎯 더미 기본값 설정 (테스트용)
+  String? _fromCountryCode = 'KR';  // 한국
+  String? _fromAirportIata = 'ICN'; // 인천국제공항
+  String? _toCountryCode = 'US';    // 미국
+  String? _toAirportIata = 'LAX';   // 로스앤젤레스
+  String? _airlineCode = 'KE';      // 대한항공
+  String? _airlineName = '대한항공';
+  String? _seatClass = '이코노미';
 
   static const List<String> _defaultSeatClasses = [
     '이코노미',
@@ -58,30 +59,35 @@ class _InitialTripScreenState extends State<InitialTripScreen> {
 
       debugPrint('🔧 [InitialTripScreen] registerIfNeeded 호출');
 
+      // 저장된 UUID를 먼저 로드
+      await deviceProvider.loadFromStorage();
+      
+      // UUID가 없으면 새로 생성 (타임스탬프 기반)
+      final deviceUuid = deviceProvider.deviceUuid ?? 
+          'android-emulator-${DateTime.now().millisecondsSinceEpoch}';
+
       await deviceProvider.registerIfNeeded(
         appVersion: '1.0.0',
         os: 'android', // 실제 플랫폼에 맞게 수정
         model: 'test-device',
         locale: 'ko-KR',
         timezone: '+09:00',
-        deviceUuid: 'dummy-device-1234', // 실제 UUID로 교체
+        deviceUuid: deviceUuid, // 동적으로 생성된 UUID 사용
       );
 
-      final deviceUuid = deviceProvider.deviceUuid;
-      final deviceToken = deviceProvider.deviceToken;
-
-      if (deviceUuid != null && deviceToken != null) {
+      // 등록 후 디바이스 정보 확인
+      if (deviceProvider.deviceUuid != null && deviceProvider.deviceToken != null) {
         debugPrint('🌍 국가 목록 fetchCountries 호출');
         await refProvider.fetchCountries(
-          deviceUuid: deviceUuid,
-          deviceToken: deviceToken,
+          deviceUuid: deviceProvider.deviceUuid!,
+          deviceToken: deviceProvider.deviceToken!,
           activeOnly: true,
         );
 
         debugPrint('✈️ 항공사 목록 fetchAirlines 호출');
         await refProvider.fetchAirlines(
-          deviceUuid: deviceUuid,
-          deviceToken: deviceToken,
+          deviceUuid: deviceProvider.deviceUuid!,
+          deviceToken: deviceProvider.deviceToken!,
           activeOnly: true,
         );
       } else {
@@ -800,12 +806,16 @@ class _InitialTripScreenState extends State<InitialTripScreen> {
         centerTitle: true,
         actions: [
           TextButton(
-            onPressed: () => context.go('/luggage'),
+            onPressed: () {
+              // 건너뛰기: 바로 스캔 화면으로
+              context.go('/scan');
+            },
             child: Text(
               '건너뛰기',
               style: TextStyle(
-                color: cs.primary,
-                fontWeight: FontWeight.w700,
+                color: Theme.of(context).colorScheme.primary, // 빨간색으로 보이게!
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
               ),
             ),
           ),
@@ -966,6 +976,62 @@ class _InitialTripScreenState extends State<InitialTripScreen> {
       return _seatClass ?? '좌석 등급 선택';
     }
 
+    // 좌석 등급 드롭다운 아이템
+    List<DropdownMenuItem<String>> _seatClassItems() {
+      final refProvider = context.read<ReferenceProvider>();
+      final cabinClasses = refProvider.cabinClassesForAirline(_airlineCode ?? '');
+      
+      if (cabinClasses.isNotEmpty) {
+        // 중복 제거를 위해 Set 사용
+        final seen = <String>{};
+        return cabinClasses
+            .where((c) => seen.add(c.name)) // 중복 제거
+            .map(
+              (c) => DropdownMenuItem<String>(
+                value: c.name,
+                child: Text(
+                  c.name,
+                  overflow: TextOverflow.ellipsis,
+                  maxLines: 1,
+                ),
+              ),
+            )
+            .toList();
+      }
+      // 기본값
+      return _defaultSeatClasses
+          .map(
+            (name) => DropdownMenuItem<String>(
+              value: name,
+              child: Text(name),
+            ),
+          )
+          .toList();
+    }
+
+    // 현재 선택된 좌석 등급이 items에 유효한지 확인
+    String? _getValidSeatClass() {
+      if (_seatClass == null) return null;
+      
+      final items = _seatClassItems();
+      final hasValidValue = items.any((item) => item.value == _seatClass);
+      
+      // 유효하지 않으면 null 반환 (리셋)
+      if (!hasValidValue) {
+        // 다음 프레임에서 _seatClass를 null로 설정
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) {
+            setState(() {
+              _seatClass = null;
+            });
+          }
+        });
+        return null;
+      }
+      
+      return _seatClass;
+    }
+
     return Column(
       key: const ValueKey('detailForm'),
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1009,7 +1075,25 @@ class _InitialTripScreenState extends State<InitialTripScreen> {
             ],
           ),
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: 16),
+
+        // 좌석 등급
+        DropdownButtonFormField<String>(
+          isExpanded: true,
+          value: _getValidSeatClass(),
+          decoration: const InputDecoration(labelText: '좌석 등급'),
+          items: _seatClassItems(),
+          onChanged: (_airlineCode == null)
+              ? null
+              : (value) {
+            setState(() {
+              _seatClass = value;
+            });
+          },
+          validator: (value) => value == null ? '좌석 등급을 선택해 주세요.' : null,
+        ),
+
+        const SizedBox(height: 16),
         const Text(
           '※ 입력하신 왕복 구간을 기준으로 항공 규정을 계산할 수 있어요.',
           style: TextStyle(fontSize: 12, color: Colors.grey),
