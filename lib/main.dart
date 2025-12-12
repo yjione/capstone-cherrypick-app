@@ -44,7 +44,7 @@ class CherryPickApp extends StatelessWidget {
   Widget build(BuildContext context) {
     // 🔹 Preview API base URL (ngrok 주소)
     const String previewBaseUrl =
-        'https://unmatted-cecilia-criticizingly.ngrok-free.dev';
+        'https://gutturalized-london-unmistakingly.ngrok-free.dev';
 
     return MultiProvider(
       providers: [
