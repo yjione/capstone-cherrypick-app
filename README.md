@@ -7,10 +7,10 @@ AI 기반 여행 짐싸기 및 항공 규정 확인을 도와주는 모바일 �
 
 ## 📌 Project Background
 
-Cherry Pick은 캡스톤 디자인 팀 프로젝트로,
+Cherry Pick은 캡스톤 디자인 팀 프로젝트로,  
 초행 여행자나 국제선 이용 시 복잡한 수하물 규정으로 어려움을 겪는 사용자를 주요 타겟으로 설계되었습니다.
 
-여행 전 짐을 체계적으로 관리하고,
+여행 전 짐을 체계적으로 관리하고,  
 카메라 스캔과 AI 분석을 통해 항공 규정 위반 여부를 사전에 확인할 수 있도록 돕는 것을 목표로 합니다.
 
 ---
@@ -107,39 +107,88 @@ Cherry Pick은 캡스톤 디자인 팀 프로젝트로,
 
 ### 설치 방법
 
-```bash
-git clone <repository-url>
-cd cherrypick-app
-flutter pub get
-flutter run
+    git clone <repository-url>
+    cd cherrypick-app
+    flutter pub get
+    flutter run
 
+---
 
-## 프로젝트 구조
+## 📂 프로젝트 구조
 
-```
-lib/
-├── main.dart                 # 앱 진입점
-├── theme/
-│   └── app_theme.dart       # 테마 설정
-├── models/
-│   ├── trip.dart            # 여행 모델
-│   └── packing_item.dart    # 짐 아이템 모델
-├── providers/
-│   ├── trip_provider.dart   # 여행 상태 관리
-│   └── packing_provider.dart # 짐 상태 관리
-├── screens/
-│   ├── luggage_screen.dart  # 짐 관리 화면
-│   ├── scan_screen.dart     # 스캔 화면
-│   ├── checklist_screen.dart # 항공 규정 화면
-│   └── recommendations_screen.dart # 추천 화면
-└── widgets/
-    ├── app_header.dart      # 앱 헤더
-    ├── bottom_navigation.dart # 하단 네비게이션
-    ├── packing_manager.dart # 짐 관리 위젯
-    ├── item_scanner.dart    # 아이템 스캐너
-    ├── regulation_checker.dart # 규정 확인기
-    └── travel_recommendations.dart # 여행 추천
-```
+    lib/
+    ├── main.dart                     # 앱 진입점
+    ├── models/                       # 데이터 모델 정의
+    │   ├── airline_ref.dart
+    │   ├── airport_ref.dart
+    │   ├── bag.dart
+    │   ├── cabin_class_ref.dart
+    │   ├── country_ref.dart
+    │   ├── device_register.dart
+    │   ├── item_preview_sample.dart
+    │   ├── outfit_recommendation.dart
+    │   ├── packing_item.dart
+    │   ├── preview_request.dart
+    │   ├── preview_response.dart
+    │   └── trip.dart
+    │
+    ├── providers/                    # Provider 기반 상태 관리
+    │   ├── device_provider.dart
+    │   ├── packing_provider.dart
+    │   ├── preview_provider.dart
+    │   ├── reference_provider.dart
+    │   └── trip_provider.dart
+    │
+    ├── screens/                      # 화면 단위 UI
+    │   ├── checklist_screen.dart
+    │   ├── home_screen.dart
+    │   ├── initial_trip_screen.dart
+    │   ├── item_preview_screen.dart
+    │   ├── luggage_screen.dart
+    │   ├── onboarding_screen.dart
+    │   ├── recommendations_screen.dart
+    │   ├── rules_check_result_screen.dart
+    │   ├── scan_screen.dart
+    │   └── splash_screen.dart
+    │
+    ├── service/                      # 백엔드 API 통신 레이어
+    │   ├── bag_api.dart
+    │   ├── detect_api.dart
+    │   ├── device_api.dart
+    │   ├── fx_api.dart
+    │   ├── item_api.dart
+    │   ├── preview_api.dart
+    │   ├── recommendation_api.dart
+    │   ├── reference_api.dart
+    │   ├── rules_api.dart
+    │   └── trip_api.dart
+    │
+    ├── theme/                        # 앱 테마 설정
+    │   └── app_theme.dart
+    │
+    ├── widgets/                      # 재사용 UI 컴포넌트
+    │   ├── add_bag_dialog.dart
+    │   ├── add_item_dialog.dart
+    │   ├── add_trip_dialog.dart
+    │   ├── app_header.dart
+    │   ├── bag_card.dart
+    │   ├── bottom_navigation.dart
+    │   ├── cherry_app_bar.dart
+    │   ├── fx_widgets.dart
+    │   ├── item_list.dart
+    │   ├── item_scanner.dart
+    │   ├── item_status_styles.dart
+    │   ├── packing_manager.dart
+    │   ├── primary_button.dart
+    │   ├── regulation_checker.dart
+    │   ├── simple_header.dart
+    │   ├── travel_recommendations.dart
+    │   ├── trip_selector_dialog.dart
+    │   └── yolo_scanner.dart
+    │
+    └── utils.ts                      # 공통 유틸리티 함수
+
+---
 
 ## 🧩 주요 특징
 
@@ -156,3 +205,7 @@ lib/
 ### User Experience
 - 부드러운 화면 전환 및 애니메이션
 - 사용자 피드백 중심 UI 구성
+
+---
+
+> Originally developed as a team capstone project under an academic organization repository.
